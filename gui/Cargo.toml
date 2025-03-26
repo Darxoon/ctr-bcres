@@ -1,0 +1,8 @@
+[package]
+name = "gui"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+nw-tex = { path = ".." }
+raylib = { git = "https://github.com/Darxoon/raylib-rs" }

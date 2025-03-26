@@ -25,3 +25,7 @@ rayon = "1.8.0"
 serde = { version = "1.0.193", features = ["serde_derive"] }
 serde-binary = "0.5.0"
 serde_yaml = "0.9.27"
+
+[workspace]
+resolver = "2"
+members = [".", "gui"]

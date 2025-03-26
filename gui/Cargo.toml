@@ -4,5 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+anyhow = "1.0.97"
+binrw = "0.14.1"
 nw-tex = { path = ".." }
 raylib = { git = "https://github.com/Darxoon/raylib-rs" }

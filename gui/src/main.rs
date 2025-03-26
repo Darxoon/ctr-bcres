@@ -1,7 +1,8 @@
 use std::fs::{self};
 
 use anyhow::Result;
-use gfx_model::load_bcres_model;
+use gfx_model::{load_bcres_model, load_bcres_textures};
+use material::{BasicMaterial, RlMaterial};
 use mesh::{BasicMesh, RlMesh};
 use nw_tex::bcres::bcres::CgfxContainer;
 use raylib::{
@@ -9,28 +10,43 @@ use raylib::{
 };
 
 mod gfx_model;
+mod material;
 mod mesh;
 
 const MOVEMENT_SPEED: f32 = 8.0;
 const MOUSE_SPEED: f32 = 0.1;
 
-fn init_bcres_model() -> Result<Vec<BasicMesh>> {
+#[derive(Clone, Debug, PartialEq, Default)]
+pub struct BasicModel {
+    pub meshes: Vec<BasicMesh>,
+    pub materials: Vec<BasicMaterial>,
+}
+
+fn init_bcres_model() -> Result<BasicModel> {
     let buf = fs::read("testing/hei_5_00.bcres")?;
     let container = CgfxContainer::new(&buf)?;
     
     if container.models.is_none() {
-        return Ok(Vec::new())
+        return Ok(BasicModel::default())
     }
     
-    let mut result: Vec<BasicMesh> = Vec::new();
+    let textures = load_bcres_textures(&container)?;
+    
+    let mut materials: Vec<BasicMaterial> = Vec::new();
+    let mut meshes: Vec<BasicMesh> = Vec::new();
     
     for node in container.models.unwrap().nodes {
         if let Some(model) = node.value {
-            result.extend(load_bcres_model(model.common(), 0.01)?);
+            let model = load_bcres_model(model.common(), &textures, 0.01, materials.len() as u32)?;
+            materials.extend_from_slice(&model.materials);
+            meshes.extend_from_slice(&model.meshes);
         }
     }
     
-    Ok(result)
+    Ok(BasicModel {
+        meshes,
+        materials,
+    })
 }
 
 fn update_cam(handle: &mut RaylibHandle, cam: &mut Camera3D) {
@@ -76,9 +92,14 @@ fn main() -> Result<()>{
         60.0,
     );
     
-    let basic_meshes = init_bcres_model()?;
-    let mut meshes: Vec<RlMesh> = basic_meshes.iter().map(RlMesh::new).collect::<Result<Vec<RlMesh>>>()?;
-    let material: WeakMaterial = handle.load_material_default(&thread);
+    let model = init_bcres_model()?;
+    let mut meshes: Vec<RlMesh> = model.meshes.iter().map(RlMesh::new).collect::<Result<Vec<RlMesh>>>()?;
+    let materials: Vec<RlMaterial> = model.materials
+        .iter()
+        .map(|mat| {
+            RlMaterial::new(&mut handle, &thread, mat)
+        })
+        .collect::<Result<Vec<RlMaterial>>>()?;
     
     for mesh in &mut meshes {
         let ffimesh: &mut ffi::Mesh = mesh.as_mut();
@@ -101,7 +122,8 @@ fn main() -> Result<()>{
         mode3d.draw_cube(Vector3::new(0.0, 0.1, 0.0), 1.0, 1.0, 1.0, Color::WHITE);
         
         for mesh in &meshes {
-            mode3d.draw_mesh(mesh, material.clone(), Matrix::identity());
+            let material = &materials[mesh.material_id as usize];
+            mode3d.draw_mesh(mesh, unsafe { WeakMaterial::from_raw(*material.as_ref()) }, Matrix::identity());
         }
     }
     

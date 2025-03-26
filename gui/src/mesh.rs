@@ -3,22 +3,27 @@ use std::{pin::Pin, ptr, slice::from_raw_parts};
 use anyhow::Result;
 use raylib::{ffi, math::Vector3, models};
 
+#[derive(Clone, Debug, PartialEq)]
 pub struct BasicMesh {
     vertices: Vec<Vector3>,
     faces: Vec<[u16; 3]>,
+    
+    material_id: u32,
 }
 
 impl BasicMesh {
-    pub fn new(vertices: Vec<Vector3>, faces: Vec<[u16; 3]>) -> Self {
+    pub fn new(vertices: Vec<Vector3>, faces: Vec<[u16; 3]>, material_id: u32) -> Self {
         BasicMesh {
             vertices,
             faces,
+            material_id,
         }
     }
 }
 
 pub struct RlMesh {
     pub mesh: models::Mesh,
+    pub material_id: u32,
     
     // are pointed to by the Mesh
     _vertex_buffer: Pin<Box<[f32]>>,
@@ -59,6 +64,7 @@ impl RlMesh {
         
         Ok(Self {
             mesh: unsafe { models::Mesh::from_raw(mesh) },
+            material_id: basic_mesh.material_id,
             _vertex_buffer: vertices,
             _index_buffer: indices,
         })

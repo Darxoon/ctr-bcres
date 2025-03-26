@@ -568,6 +568,7 @@ name = "nw-tex"
 version = "1.2.0"
 dependencies = [
  "anyhow",
+ "array-init",
  "binrw",
  "byteorder",
  "clap",

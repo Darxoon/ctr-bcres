@@ -85,8 +85,8 @@ pub fn brw_write_zero(_: &Option<String>) -> BinResult<()> {
 
 #[parser(reader, endian)]
 pub fn brw_relative_pointer() -> BinResult<Option<Pointer>> {
-    let reader_pos = reader.stream_position()?;
-    let pointer: u64 = u32::read_options(reader, endian, ())?.into();
+    let reader_pos: i64 = reader.stream_position()?.try_into().unwrap();
+    let pointer: i64 = i32::read_options(reader, endian, ())?.into();
     
     if pointer == 0 {
         return Ok(None);
@@ -152,6 +152,64 @@ pub fn read_inline_list<T: CgfxCollectionValue>(reader: &mut Cursor<&[u8]>) -> R
     };
     
     Ok(values)
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct CgfxBox<T: BinRead + BinWrite + Clone> {
+    pub value: Option<T>,
+}
+
+impl<'b, T> BinRead for CgfxBox<T>
+where
+    T: BinRead<Args<'b> = ()> + BinWrite<Args<'b>= ()> + Clone,
+{
+    type Args<'a> = ();
+
+    fn read_options<R: Read + Seek>(reader: &mut R, endian: Endian, _args: ()) -> BinResult<Self> {
+        let reader_pos = reader.stream_position()?;
+        let pointer: u64 = u32::read_options(reader, endian, ())?.into();
+        
+        if pointer == 0 {
+            return Ok(Self { value: None });
+        }
+        
+        scoped_reader_pos!(reader);
+        
+        reader.seek(SeekFrom::Start(reader_pos + pointer))?;
+        
+        let value = Some(T::read_options(reader, endian, ())?);
+        
+        Ok(Self { value })
+    }
+}
+
+impl<T: BinRead + BinWrite + Clone> BinWrite for CgfxBox<T> {
+    type Args<'a> = ();
+
+    fn write_options<W: Write + Seek>(&self, writer: &mut W, endian: Endian, _args: ()) -> BinResult<()> {
+        0u32.write_options(writer, endian, ())?;
+        Ok(())
+    }
+}
+
+impl<T: BinRead + BinWrite + Clone> Into<Option<T>> for CgfxBox<T> {
+    fn into(self) -> Option<T> {
+        self.value
+    }
+}
+
+impl<T: BinRead + BinWrite + Clone> From<Option<T>> for CgfxBox<T> {
+    fn from(value: Option<T>) -> Self {
+        Self { value }
+    }
+}
+
+impl<T: BinRead + BinWrite + Clone> From<&Option<T>> for CgfxBox<T> {
+    fn from(value: &Option<T>) -> Self {
+        Self {
+            value: value.as_ref().map(|x| x.clone()),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, BinRead, BinWrite)]

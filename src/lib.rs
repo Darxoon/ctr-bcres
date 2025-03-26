@@ -58,13 +58,13 @@ pub struct ReaderGuard<'a, R: Read + Seek> {
 }
 
 impl<'a, R: Read + Seek> ReaderGuard<'a, R> {
-    pub fn new(reader: &'a mut R) -> Result<Self> {
-        let start_pos = reader.stream_position()?;
+    pub fn new(reader: &'a mut R) -> Self {
+        let start_pos = reader.stream_position().unwrap();
         
-        Ok(Self {
+        Self {
             reader,
             start_pos,
-        })
+        }
     }
 }
 
@@ -77,7 +77,7 @@ impl<'a, R: Read + Seek> Drop for ReaderGuard<'a, R> {
 #[macro_export]
 macro_rules! scoped_reader_pos {
     ($reader:ident) => {
-        let guard = crate::ReaderGuard::new($reader)?;
+        let guard = crate::ReaderGuard::new($reader);
         let $reader = &mut *guard.reader;
     };
 }

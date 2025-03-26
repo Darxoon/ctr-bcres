@@ -1,7 +1,24 @@
 use std::io::{Read, Seek, Write};
 
 use binrw::{BinRead, BinResult, BinWrite, Endian};
-use na::{ArrayStorage, Const, Matrix, U3};
+use na::{ArrayStorage, Const, Matrix};
+
+#[derive(Clone, Copy, Debug, PartialEq, Default, BinRead, BinWrite)]
+#[brw(little)]
+pub struct Vec2 {
+    pub x: f32,
+    pub y: f32,
+}
+
+impl Vec2 {
+    pub fn new(x: f32, y: f32) -> Self {
+        Vec2 { x, y }
+    }
+    
+    pub fn to_na(&self) -> na::Vec2 {
+        na::Vec2::new(self.x, self.y)
+    }
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Default, BinRead, BinWrite)]
 #[brw(little)]
@@ -39,9 +56,6 @@ impl Vec4 {
         na::Vec4::new(self.x, self.y, self.z, self.w)
     }
 }
-
-// why doesn't this exist by default
-pub type Matrix3x3<T> = Matrix<T, U3, U3, ArrayStorage<T, 3, 3>>;
 
 // binrw matrix helper
 pub struct SerializableMatrix<const R: usize, const C: usize> {

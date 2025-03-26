@@ -7,22 +7,20 @@ use std::{
 use anyhow::{anyhow, Result};
 use binrw::{BinRead, BinWrite};
 use byteorder::{LittleEndian, ReadBytesExt};
+use na::Matrix3;
 
 use crate::{
     scoped_reader_pos,
     util::{
-        math::{Matrix3x3, SerializableMatrix, Vec3, Vec4},
+        math::{SerializableMatrix, Vec3},
         pointer::Pointer,
     },
 };
 
 use super::{
-    bcres::{CgfxCollectionValue, CgfxDict, WriteContext},
-    image_codec::RgbaColor,
-    util::{
-        read_inline_list, read_pointer_list, read_pointer_list_magic, CgfxNodeHeader,
-        CgfxObjectHeader, CgfxTransform,
-    },
+    bcres::{CgfxCollectionValue, CgfxDict, WriteContext}, material::CgfxMaterial, util::{
+        read_inline_list, read_pointer_list, read_pointer_list_magic, CgfxNodeHeader, CgfxObjectHeader, CgfxTransform
+    }
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -34,7 +32,7 @@ pub struct CgfxModelCommon {
     
     // model data
     pub meshes: Option<Vec<Mesh>>,
-    pub materials: Option<CgfxDict<Material>>,
+    pub materials: Option<CgfxDict<CgfxMaterial>>,
     pub shapes: Option<Vec<Shape>>,
     pub mesh_node_visibilities: Option<CgfxDict<()>>, // TODO: implement
     
@@ -68,7 +66,7 @@ impl CgfxModel {
         let materials = if let Some(material_ptr) = material_ptr {
             scoped_reader_pos!(reader);
             reader.set_position(reader.position() + u64::from(material_ptr) - 4);
-            let dict: CgfxDict<Material> = CgfxDict::from_reader(reader)?;
+            let dict: CgfxDict<CgfxMaterial> = CgfxDict::from_reader(reader)?;
             
             assert!(dict.values_count == material_count);
             Some(dict)
@@ -166,49 +164,6 @@ pub struct Mesh {
     // ...
 }
 
-#[derive(Clone, Debug, PartialEq, BinRead, BinWrite)]
-#[brw(little, magic = 0x8000000u32)]
-pub struct Material {
-    pub cgfx_object_header: CgfxObjectHeader,
-    
-    // material stuff
-    pub flags: u32,
-    pub tex_coord_config: u32,
-    pub render_layer: u32,
-    pub colors: MaterialColors,
-    // ...
-}
-
-#[derive(Clone, Debug, PartialEq, BinRead, BinWrite)]
-#[brw(little)]
-pub struct MaterialColors {
-    pub emission_float: Vec4,
-    pub ambient_float: Vec4,
-    pub diffuse_float: Vec4,
-    pub specular0_float: Vec4,
-    pub specular1_float: Vec4,
-    pub constant0_float: Vec4,
-    pub constant1_float: Vec4,
-    pub constant2_float: Vec4,
-    pub constant3_float: Vec4,
-    pub constant4_float: Vec4,
-    pub constant5_float: Vec4,
-    
-    pub emission: RgbaColor,
-    pub ambient: RgbaColor,
-    pub diffuse: RgbaColor,
-    pub specular0: RgbaColor,
-    pub specular1: RgbaColor,
-    pub constant0: RgbaColor,
-    pub constant1: RgbaColor,
-    pub constant2: RgbaColor,
-    pub constant3: RgbaColor,
-    pub constant4: RgbaColor,
-    pub constant5: RgbaColor,
-    
-    pub command_cache: u32,
-}
-
 #[derive(Clone, Debug, PartialEq)]
 pub struct Shape {
     // object header
@@ -282,7 +237,7 @@ pub struct BoundingBox {
     
     pub center: Vec3,
     #[brw(repr = SerializableMatrix<3, 3>)]
-    pub orientation: Matrix3x3<f32>,
+    pub orientation: Matrix3<f32>,
     pub size: Vec3,
 }
 

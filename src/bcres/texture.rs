@@ -4,6 +4,7 @@ use std::{
 };
 
 use anyhow::{Error, Result};
+use array_init::try_array_init;
 use binrw::{BinRead, BinWrite};
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use serde::{Deserialize, Serialize};
@@ -111,7 +112,7 @@ pub struct CgfxTextureCommon {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum CgfxTexture {
-    Cube(CgfxTextureCommon, Vec<ImageData>),
+    Cube(CgfxTextureCommon, [ImageData; 6]),
     Image(CgfxTextureCommon, Option<ImageData>),
 }
 
@@ -144,15 +145,8 @@ impl CgfxTexture {
         let common = CgfxTextureCommon::read(reader)?;
         
         let result = match texture_type_discriminant {
-            0x20000009 => CgfxTexture::Cube(common, {
-                let mut images = Vec::with_capacity(6);
-                
-                for _ in 0..6 {
-                    images.push(image_data(reader)?.unwrap());
-                }
-                
-                images
-            }),
+            0x20000009 => CgfxTexture::Cube(common,
+                try_array_init(|_| image_data(reader).transpose().unwrap())?),
             0x20000011 => CgfxTexture::Image(common, image_data(reader)?),
             
             _ => return Err(Error::msg(format!("Invalid Texture discriminant {:x}", texture_type_discriminant)))

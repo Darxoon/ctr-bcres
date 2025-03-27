@@ -2,7 +2,12 @@ use std::{os::raw::c_void, pin::Pin, ptr, slice::from_raw_parts};
 
 use anyhow::Result;
 use nw_tex::bcres::image_codec::RgbaColor;
-use raylib::{ffi::{self, MaterialMapIndex, PixelFormat}, models::{Material, RaylibMaterial, WeakMaterial}, texture::Image, RaylibHandle, RaylibThread};
+use raylib::{
+    ffi::{self, MaterialMapIndex, PixelFormat},
+    models::{Material, RaylibMaterial},
+    texture::{Image, RaylibTexture2D, Texture2D},
+    RaylibHandle, RaylibThread,
+};
 
 #[derive(Clone, Debug, PartialEq, Default)]
 pub struct BasicImage {
@@ -91,21 +96,27 @@ impl BasicMaterial {
 
 pub struct RlMaterial {
     pub material: Material,
+    pub _texture: Option<Texture2D>,
 }
 
 impl RlMaterial {
     pub fn new(handle: &mut RaylibHandle, thread: &RaylibThread, basic_mat: &BasicMaterial) -> Result<Self> {
         let mut material = unsafe { Material::from_raw(ffi::LoadMaterialDefault()) };
+        let mut texture = None;
         
         if let Some(diffuse_texture) = basic_mat.diffuse_texture.as_ref() {
             let image = RlImage::new(diffuse_texture, basic_mat.is_transparent);
-            let texture = handle.load_texture_from_image(&thread, image.as_ref())?;
+            let new_texture = handle.load_texture_from_image(&thread, image.as_ref())?;
+            assert!(new_texture.is_texture_valid());
             
-            material.set_material_texture(MaterialMapIndex::MATERIAL_MAP_ALBEDO, texture);
+            material.set_material_texture(MaterialMapIndex::MATERIAL_MAP_ALBEDO, &new_texture);
+            
+            texture = Some(new_texture);
         }
         
         Ok(Self {
             material,
+            _texture: texture
         })
     }
 }

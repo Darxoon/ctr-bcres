@@ -1,24 +1,19 @@
 use std::{pin::Pin, ptr, slice::from_raw_parts};
 
 use anyhow::Result;
-use raylib::{ffi, math::Vector3, models};
+use raylib::{
+    ffi,
+    math::{Vector2, Vector3},
+    models,
+};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct BasicMesh {
-    vertices: Vec<Vector3>,
-    faces: Vec<[u16; 3]>,
+    pub vertex_positions: Vec<Vector3>,
+    pub vertex_uvs: Vec<Vector2>,
+    pub faces: Vec<[u16; 3]>,
     
-    material_id: u32,
-}
-
-impl BasicMesh {
-    pub fn new(vertices: Vec<Vector3>, faces: Vec<[u16; 3]>, material_id: u32) -> Self {
-        BasicMesh {
-            vertices,
-            faces,
-            material_id,
-        }
-    }
+    pub material_id: u32,
 }
 
 pub struct RlMesh {
@@ -27,27 +22,59 @@ pub struct RlMesh {
     
     // are pointed to by the Mesh
     _vertex_buffer: Pin<Box<[f32]>>,
+    _vertex_uvs: Option<Pin<Box<[f32]>>>,
     _index_buffer: Pin<Box<[u16]>>,
 }
 
 impl RlMesh {
     pub fn new(basic_mesh: &BasicMesh) -> Result<Self> {
-        let mut vertices = Pin::new(unsafe {
-            from_raw_parts(basic_mesh.vertices.as_ptr() as *const f32, basic_mesh.vertices.len() * 3)
-        }.to_owned().into_boxed_slice());
-        
-        let mut indices = Pin::new(unsafe {
-            from_raw_parts(basic_mesh.faces.as_ptr() as *const u16, basic_mesh.faces.len() * 3)
-        }.to_owned().into_boxed_slice());
-        
+        let mut vertices = Pin::new(
+            unsafe {
+                from_raw_parts(
+                    basic_mesh.vertex_positions.as_ptr() as *const f32,
+                    basic_mesh.vertex_positions.len() * 3,
+                )
+            }
+            .to_owned()
+            .into_boxed_slice(),
+        );
+        let mut vertex_uvs = if basic_mesh.vertex_uvs.len() != 0 {
+            Some(Pin::new(
+                unsafe {
+                    from_raw_parts(
+                        basic_mesh.vertex_uvs.as_ptr() as *const f32,
+                        basic_mesh.vertex_uvs.len() * 2,
+                    )
+                }
+                .to_owned()
+                .into_boxed_slice(),
+            ))
+        } else {
+            None
+        };
+        let mut indices = Pin::new(
+            unsafe {
+                from_raw_parts(
+                    basic_mesh.faces.as_ptr() as *const u16,
+                    basic_mesh.faces.len() * 3,
+                )
+            }
+            .to_owned()
+            .into_boxed_slice(),
+        );
         let mesh = ffi::Mesh {
-            vertexCount: basic_mesh.vertices.len().try_into()?,
+            vertexCount: basic_mesh.vertex_positions.len().try_into()?,
             vertices: vertices.as_mut_ptr(),
             
             triangleCount: basic_mesh.faces.len().try_into()?,
             indices: indices.as_mut_ptr(),
             
-            texcoords: ptr::null_mut(),
+            texcoords: if let Some(vertex_uvs) = &mut vertex_uvs {
+                vertex_uvs.as_mut_ptr()
+            } else {
+                ptr::null_mut()
+            },
+            
             texcoords2: ptr::null_mut(),
             normals: ptr::null_mut(),
             tangents: ptr::null_mut(),
@@ -66,6 +93,7 @@ impl RlMesh {
             mesh: unsafe { models::Mesh::from_raw(mesh) },
             material_id: basic_mesh.material_id,
             _vertex_buffer: vertices,
+            _vertex_uvs: vertex_uvs,
             _index_buffer: indices,
         })
     }
@@ -77,6 +105,7 @@ impl Drop for RlMesh {
         // or else raylib will try to free them itself
         self.mesh.vertices = ptr::null_mut();
         self.mesh.indices = ptr::null_mut();
+        self.mesh.texcoords = ptr::null_mut();
     }
 }
 

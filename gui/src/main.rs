@@ -6,7 +6,13 @@ use material::{BasicMaterial, RlMaterial};
 use mesh::{BasicMesh, RlMesh};
 use nw_tex::bcres::bcres::CgfxContainer;
 use raylib::{
-    camera::Camera3D, color::Color, ffi::{self, CameraMode, KeyboardKey, DEG2RAD}, math::{Matrix, Vector3}, models::{Material, WeakMaterial}, prelude::{RaylibDraw, RaylibDraw3D, RaylibMode3DExt}, RaylibHandle
+    camera::Camera3D,
+    color::Color,
+    ffi::{self, CameraMode, KeyboardKey, DEG2RAD},
+    math::{Matrix, Vector3},
+    models::{RaylibMaterial, WeakMaterial},
+    prelude::{RaylibDraw, RaylibDraw3D, RaylibMode3DExt},
+    RaylibHandle,
 };
 
 mod gfx_model;
@@ -42,11 +48,7 @@ fn init_bcres_model() -> Result<BasicModel> {
             meshes.extend_from_slice(&model.meshes);
         }
     }
-    
-    Ok(BasicModel {
-        meshes,
-        materials,
-    })
+    Ok(BasicModel { meshes, materials })
 }
 
 fn update_cam(handle: &mut RaylibHandle, cam: &mut Camera3D) {
@@ -78,7 +80,7 @@ fn update_cam(handle: &mut RaylibHandle, cam: &mut Camera3D) {
     *cam = fficam.into();
 }
 
-fn main() -> Result<()>{
+fn main() -> Result<()> {
     let (mut handle, thread) = raylib::init()
         .size(1280, 720)
         .resizable()
@@ -93,14 +95,19 @@ fn main() -> Result<()>{
     );
     
     let model = init_bcres_model()?;
-    let mut meshes: Vec<RlMesh> = model.meshes.iter().map(RlMesh::new).collect::<Result<Vec<RlMesh>>>()?;
-    let materials: Vec<RlMaterial> = model.materials
-        .iter()
-        .map(|mat| {
-            RlMaterial::new(&mut handle, &thread, mat)
-        })
-        .collect::<Result<Vec<RlMaterial>>>()?;
     
+    let mut materials: Vec<RlMaterial> = Vec::with_capacity(model.materials.len());
+    
+    for mat in &model.materials {
+        let mut mat = RlMaterial::new(&mut handle, &thread, mat)?;
+        assert!(mat.material.is_material_valid());
+        materials.push(mat);
+    }
+    let mut meshes: Vec<RlMesh> = model
+        .meshes
+        .iter()
+        .map(RlMesh::new)
+        .collect::<Result<Vec<RlMesh>>>()?;
     for mesh in &mut meshes {
         let ffimesh: &mut ffi::Mesh = mesh.as_mut();
         

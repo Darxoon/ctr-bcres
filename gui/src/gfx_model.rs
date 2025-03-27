@@ -1,11 +1,37 @@
-use std::{collections::HashMap, io::{Cursor, Seek, SeekFrom}, mem::transmute, ops::Deref};
+use std::{
+    collections::HashMap,
+    io::{Cursor, Seek, SeekFrom},
+    mem::transmute,
+    ops::Deref,
+};
 
 use anyhow::{anyhow, Result};
 use binrw::BinRead;
-use nw_tex::{bcres::{bcres::CgfxContainer, image_codec::decode_swizzled_buffer, material::TextureMapper, model::{AttributeName, CgfxModelCommon, Face, FaceDescriptor, GlDataType, SubMesh, VertexBuffer, VertexBufferAttribute}, texture::{CgfxTexture, CgfxTextureCommon, ImageData}}, util::math::Vec3};
-use raylib::math::Vector3;
+use nw_tex::{
+    bcres::{
+        bcres::CgfxContainer,
+        image_codec::decode_swizzled_buffer,
+        material::TextureMapper,
+        model::{
+            AttributeName, CgfxModelCommon, Face, FaceDescriptor, GlDataType, SubMesh,
+            VertexBuffer, VertexBufferAttribute,
+        },
+        texture::{CgfxTexture, CgfxTextureCommon, ImageData},
+    },
+    util::math::{Vec2, Vec3},
+};
+use raylib::math::{Vector2, Vector3};
 
-use crate::{material::{BasicImage, BasicMaterial}, mesh::BasicMesh, BasicModel};
+use crate::{
+    material::{BasicImage, BasicMaterial},
+    mesh::BasicMesh,
+    BasicModel,
+};
+
+fn vec2_to_rl(vector: Vec2) -> Vector2 {
+    // Vec3 and Vector3 have exactly the same layouts
+    unsafe { transmute(vector) }
+}
 
 fn vec3_to_rl(vector: Vec3) -> Vector3 {
     // Vec3 and Vector3 have exactly the same layouts
@@ -57,7 +83,7 @@ pub fn load_bcres_model(common: &CgfxModelCommon, textures: &HashMap<String, Bas
     let gfx_materials = common.materials.as_ref().unwrap().nodes.deref();
     let mut out_materials: Vec<BasicMaterial> = Vec::new();
     
-    for (i, node) in gfx_materials.iter().enumerate() {
+    for node in gfx_materials {
         if let Some(material) = &node.value {
             let mut texture_mapper: Option<&TextureMapper> = None;
             
@@ -69,7 +95,13 @@ pub fn load_bcres_model(common: &CgfxModelCommon, textures: &HashMap<String, Bas
             }
             
             let image = if let Some(texture_mapper) = texture_mapper {
-                let texture_path = texture_mapper.texture.as_ref().unwrap().path.as_deref().unwrap();
+                let texture_path = texture_mapper
+                    .texture
+                    .as_ref()
+                    .unwrap()
+                    .path
+                    .as_deref()
+                    .unwrap();
                 Some(textures.get(texture_path).unwrap().clone())
             } else {
                 None
@@ -92,8 +124,9 @@ pub fn load_bcres_model(common: &CgfxModelCommon, textures: &HashMap<String, Bas
             .ok_or_else(|| anyhow!("Invalid shape index {}", mesh.shape_index))?;
         
         let vertex_buffers = shape.vertex_buffers.as_ref().unwrap();
-        let mut current_vertices: Vec<Vector3> = Vec::new();
-        let mut current_faces: Vec<[u16; 3]> = Vec::new();
+        let mut vertex_positions: Vec<Vector3> = Vec::new();
+        let mut vertex_uvs: Vec<Vector2> = Vec::new();
+        let mut faces: Vec<[u16; 3]> = Vec::new();
         
         // collect all vertices
         for vb in vertex_buffers {
@@ -107,10 +140,12 @@ pub fn load_bcres_model(common: &CgfxModelCommon, textures: &HashMap<String, Bas
                         for _ in 0..raw_bytes.len() / attribute.elements as usize {
                             let pos: Vector3 = vec3_to_rl(Vec3::read(&mut reader)?) * attribute.scale * global_scale;
                             
-                            current_vertices.push(pos);
+                            vertex_positions.push(pos);
                         }
                         
                         todo!();
+                    } else if attribute.vertex_buffer_common.attribute_name == AttributeName::TexCoord0 {
+                        todo!()
                     }
                 },
                 VertexBuffer::Interleaved(interleaved) => {
@@ -131,13 +166,24 @@ pub fn load_bcres_model(common: &CgfxModelCommon, textures: &HashMap<String, Bas
                     
                     for _ in 0..vertex_count {
                         for attr in attributes {
-                            if attr.attribute_name == AttributeName::Position {
-                                assert!(attr.elements == 3 && attr.format == GlDataType::Float);
-                                let pos: Vector3 = vec3_to_rl(Vec3::read(&mut reader)?) * attr.scale * global_scale;
-                                
-                                current_vertices.push(pos);
-                            } else {
-                                reader.seek(SeekFrom::Current((attr.format.byte_size() * attr.elements) as i64))?;
+                            match attr.attribute_name {
+                                AttributeName::Position => {
+                                    assert!(attr.elements == 3 && attr.format == GlDataType::Float);
+                                    let pos: Vector3 = vec3_to_rl(Vec3::read(&mut reader)?)
+                                        * attr.scale
+                                        * global_scale;
+                                    vertex_positions.push(pos);
+                                },
+                                AttributeName::TexCoord0 => {
+                                    assert!(attr.elements == 2 && attr.format == GlDataType::Float);
+                                    let mut uv: Vector2 = vec2_to_rl(Vec2::read(&mut reader)?) * attr.scale;
+                                    uv.y *= -1.0;
+                                    
+                                    vertex_uvs.push(uv);
+                                }
+                                _ => {
+                                    reader.seek(SeekFrom::Current((attr.format.byte_size() * attr.elements) as i64))?;
+                                }
                             }
                         }
                     }
@@ -167,13 +213,19 @@ pub fn load_bcres_model(common: &CgfxModelCommon, textures: &HashMap<String, Bas
                         let b_index = *reader.next().unwrap();
                         let c_index = *reader.next().unwrap();
                         
-                        current_faces.push([a_index, b_index, c_index]);
+                        faces.push([a_index, b_index, c_index]);
                     }
                 }
             }
         }
         
-        out_meshes.push(BasicMesh::new(current_vertices, current_faces, mesh.material_index + start_material_id));
+        out_meshes.push(BasicMesh {
+            vertex_positions,
+            vertex_uvs,
+            faces,
+            
+            material_id: mesh.material_index + start_material_id,
+        });
     }
     
     Ok(BasicModel {

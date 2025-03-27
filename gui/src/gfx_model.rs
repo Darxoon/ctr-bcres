@@ -10,7 +10,7 @@ use binrw::BinRead;
 use nw_tex::{
     bcres::{
         bcres::CgfxContainer,
-        image_codec::decode_swizzled_buffer,
+        image_codec::{decode_swizzled_buffer, RgbaColor},
         material::TextureMapper,
         model::{
             AttributeName, CgfxModelCommon, Face, FaceDescriptor, GlDataType, SubMesh,
@@ -126,6 +126,7 @@ pub fn load_bcres_model(common: &CgfxModelCommon, textures: &HashMap<String, Bas
         let vertex_buffers = shape.vertex_buffers.as_ref().unwrap();
         let mut vertex_positions: Vec<Vector3> = Vec::new();
         let mut vertex_uvs: Vec<Vector2> = Vec::new();
+        let mut vertex_colors: Vec<RgbaColor> = Vec::new();
         let mut faces: Vec<[u16; 3]> = Vec::new();
         
         // collect all vertices
@@ -180,16 +181,24 @@ pub fn load_bcres_model(common: &CgfxModelCommon, textures: &HashMap<String, Bas
                                     uv.y *= -1.0;
                                     
                                     vertex_uvs.push(uv);
+                                },
+                                AttributeName::Color => {
+                                    assert!(attr.elements == 4 && attr.format == GlDataType::UByte);
+                                    let color = RgbaColor::read(&mut reader)?;
+                                    
+                                    vertex_colors.push(color);
                                 }
                                 _ => {
                                     reader.seek(SeekFrom::Current((attr.format.byte_size() * attr.elements) as i64))?;
-                                }
+                                },
                             }
                         }
                     }
                 },
                 // it doesn't make sense for Position to be fixed so this is just ignored
-                VertexBuffer::Fixed(_) => (),
+                VertexBuffer::Fixed(_) => {
+                    // TODO: vertex colors might be in here
+                },
             }
         }
         
@@ -222,6 +231,7 @@ pub fn load_bcres_model(common: &CgfxModelCommon, textures: &HashMap<String, Bas
         out_meshes.push(BasicMesh {
             vertex_positions,
             vertex_uvs,
+            vertex_colors,
             faces,
             
             material_id: mesh.material_index + start_material_id,

@@ -4,7 +4,7 @@ use anyhow::Result;
 use nw_tex::bcres::image_codec::RgbaColor;
 use raylib::{
     ffi::{self, MaterialMapIndex, PixelFormat},
-    models::{Material, RaylibMaterial},
+    models::{Material, RaylibMaterial, WeakMaterial},
     texture::{Image, RaylibTexture2D, Texture2D},
     RaylibHandle, RaylibThread,
 };
@@ -104,7 +104,7 @@ impl RlMaterial {
         let mut material = unsafe { Material::from_raw(ffi::LoadMaterialDefault()) };
         let mut texture = None;
         
-        if let Some(diffuse_texture) = basic_mat.diffuse_texture.as_ref() {
+        if let Some(diffuse_texture) = &basic_mat.diffuse_texture {
             let image = RlImage::new(diffuse_texture, basic_mat.is_transparent);
             let new_texture = handle.load_texture_from_image(&thread, image.as_ref())?;
             assert!(new_texture.is_texture_valid());
@@ -121,8 +121,10 @@ impl RlMaterial {
     }
 }
 
-impl AsRef<ffi::Material> for RlMaterial {
-    fn as_ref(&self) -> &ffi::Material {
-        &self.material
+impl Into<WeakMaterial> for &RlMaterial {
+    fn into(self) -> WeakMaterial {
+        let raw_material: &ffi::Material = &self.material;
+        
+        unsafe { WeakMaterial::from_raw(*raw_material) }
     }
 }

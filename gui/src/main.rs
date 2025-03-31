@@ -1,4 +1,4 @@
-use std::fs::{self};
+use std::{fs, io::ErrorKind};
 
 use anyhow::Result;
 use gfx_model::{load_bcres_model, load_bcres_textures};
@@ -8,9 +8,9 @@ use nw_tex::bcres::bcres::CgfxContainer;
 use raylib::{
     camera::Camera3D,
     color::Color,
-    ffi::{self, CameraMode, KeyboardKey, DEG2RAD},
-    math::{Matrix, Vector3},
-    models::{RaylibMaterial, WeakMaterial},
+    ffi::{self, rlGetCullDistanceFar, rlGetCullDistanceNear, CameraMode, GetScreenHeight, GetScreenWidth, KeyboardKey, DEG2RAD},
+    math::{Matrix, Vector3, Vector4},
+    models::RaylibMaterial,
     prelude::{RaylibDraw, RaylibDraw3D, RaylibMode3DExt},
     RaylibHandle,
 };
@@ -29,7 +29,14 @@ pub struct BasicModel {
 }
 
 fn init_bcres_model() -> Result<BasicModel> {
-    let buf = fs::read("testing/hei_5_00.bcres")?;
+    let buf = match fs::read("testing/hei_5_00.bcres") {
+        Ok(buf) => buf,
+        Err(error) => match error.kind() {
+            ErrorKind::NotFound => fs::read("../testing/hei_5_00.bcres")?,
+            _ => return Err(error.into()),
+        },
+    };
+    
     let container = CgfxContainer::new(&buf)?;
     
     if container.models.is_none() {
@@ -121,16 +128,34 @@ fn main() -> Result<()> {
     while !handle.window_should_close() {
         update_cam(&mut handle, &mut cam);
         
+        let perspective = {
+            let width = unsafe { GetScreenWidth() } as f32;
+            let height = unsafe { GetScreenHeight() } as f32;
+            let near_plane = unsafe { rlGetCullDistanceNear() } as f32;
+            let far_plane = unsafe { rlGetCullDistanceFar() } as f32;
+            
+            Matrix::perspective(cam.fovy * DEG2RAD as f32, width / height, near_plane, far_plane)
+        };
+        
+        let view = Matrix::look_at(cam.position, cam.target, cam.up);
+        
         let mut draw = handle.begin_drawing(&thread);
         draw.clear_background(Color::GRAY);
         
         let mut mode3d = draw.begin_mode3D(cam);
         
-        mode3d.draw_cube(Vector3::new(0.0, 0.1, 0.0), 1.0, 1.0, 1.0, Color::WHITE);
+        let mut sortable_meshes: Vec<(&RlMesh, f32)> = meshes.iter().map(|mesh| {
+            let pos = Vector4::new(mesh.center_position.x, mesh.center_position.y, mesh.center_position.z, 1.0);
+            let pos = pos.transform(view);
+            let pos = pos.transform(perspective);
+            (mesh, pos.z)
+        }).collect();
         
-        for mesh in &meshes {
+        sortable_meshes.sort_by(|a, b| a.1.total_cmp(&b.1));
+        
+        for (mesh, _) in sortable_meshes {
             let material = &materials[mesh.material_id as usize];
-            mode3d.draw_mesh(mesh, unsafe { WeakMaterial::from_raw(*material.as_ref()) }, Matrix::identity());
+            mode3d.draw_mesh(mesh, material.into(), Matrix::identity());
         }
     }
     

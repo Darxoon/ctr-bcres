@@ -85,10 +85,12 @@ pub fn load_bcres_model(common: &CgfxModelCommon, textures: &HashMap<String, Bas
     
     for node in gfx_materials {
         if let Some(material) = &node.value {
+            assert!(material.render_layer == 0);
+            
             let mut texture_mapper: Option<&TextureMapper> = None;
             
             for mapper in &material.texture_mappers {
-                if let Some(mapper) = mapper.as_ref() {
+                if let Some(mapper) = &mapper {
                     texture_mapper = Some(mapper);
                     break;
                 }
@@ -120,6 +122,8 @@ pub fn load_bcres_model(common: &CgfxModelCommon, textures: &HashMap<String, Bas
     let mut out_meshes: Vec<BasicMesh> = Vec::new();
     
     for mesh in meshes {
+        assert!(mesh.render_priority == 0);
+        
         let shape = shapes.get(mesh.shape_index as usize)
             .ok_or_else(|| anyhow!("Invalid shape index {}", mesh.shape_index))?;
         
@@ -234,6 +238,7 @@ pub fn load_bcres_model(common: &CgfxModelCommon, textures: &HashMap<String, Bas
             vertex_colors,
             faces,
             
+            center: vec3_to_rl(shape.bounding_box.as_ref().unwrap().center),
             material_id: mesh.material_index + start_material_id,
         });
     }

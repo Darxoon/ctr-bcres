@@ -15,6 +15,7 @@ pub struct BasicMesh {
     pub vertex_colors: Vec<RgbaColor>,
     pub faces: Vec<[u16; 3]>,
     
+    pub center: Vector3,
     pub material_id: u32,
 }
 
@@ -117,18 +118,9 @@ impl RlMesh {
             vboId: ptr::null_mut(),
         };
         
-        // calculate center
-        // TODO: figure out how to make this more accurate
-        let mut center: Vector3 = Vector3::default();
-        for vertex in &basic_mesh.vertex_positions {
-            center += *vertex;
-        }
-        
-        center /= basic_mesh.vertex_positions.len() as f32;
-        
         Ok(Self {
             mesh: unsafe { models::Mesh::from_raw(mesh) },
-            center_position: center,
+            center_position: basic_mesh.center,
             material_id: basic_mesh.material_id,
             
             _vertex_buffer: vertices,

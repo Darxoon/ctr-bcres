@@ -95,15 +95,15 @@ pub fn brw_relative_pointer() -> BinResult<Option<Pointer>> {
     Ok(Some(Pointer::from(reader_pos + pointer)))
 }
 
-pub fn read_pointer_list<T: CgfxCollectionValue>(reader: &mut Cursor<&[u8]>) -> Result<Option<Vec<T>>> {
-    read_pointer_list_magic(reader, None)
+pub fn read_pointer_list<T: CgfxCollectionValue>(reader: &mut Cursor<&[u8]>) -> Result<Vec<T>> {
+    read_pointer_list_ext(reader, None)
 }
 
-pub fn read_pointer_list_magic<T: CgfxCollectionValue>(reader: &mut Cursor<&[u8]>, magic: Option<u32>) -> Result<Option<Vec<T>>> {
+pub fn read_pointer_list_ext<T: CgfxCollectionValue>(reader: &mut Cursor<&[u8]>, magic: Option<u32>) -> Result<Vec<T>> {
     let count = reader.read_u32::<LittleEndian>()?;
     let list_ptr = Pointer::read_relative(reader)?;
     
-    let values: Option<Vec<T>> = if let Some(list_ptr) = list_ptr {
+    let values: Vec<T> = if let Some(list_ptr) = list_ptr {
         scoped_reader_pos!(reader);
         let mut values: Vec<T> = Vec::with_capacity(count as usize);
         
@@ -125,19 +125,19 @@ pub fn read_pointer_list_magic<T: CgfxCollectionValue>(reader: &mut Cursor<&[u8]
             }
         }
         
-        Some(values)
+        values
     } else {
-        None
+        Vec::new()
     };
     
     Ok(values)
 }
 
-pub fn read_inline_list<T: CgfxCollectionValue>(reader: &mut Cursor<&[u8]>) -> Result<Option<Vec<T>>> {
+pub fn read_inline_list<T: CgfxCollectionValue>(reader: &mut Cursor<&[u8]>) -> Result<Vec<T>> {
     let count = reader.read_u32::<LittleEndian>()?;
     let list_ptr = Pointer::read(reader)?;
     
-    let values: Option<Vec<T>> = if let Some(list_ptr) = list_ptr {
+    let values: Vec<T> = if let Some(list_ptr) = list_ptr {
         scoped_reader_pos!(reader);
         
         reader.seek(SeekFrom::Current(i64::from(list_ptr) - 4))?;
@@ -146,9 +146,9 @@ pub fn read_inline_list<T: CgfxCollectionValue>(reader: &mut Cursor<&[u8]>) -> R
             .map(|_| T::read_dict_value(reader))
             .collect::<Result<Vec<T>>>()?;
         
-        Some(values)
+        values
     } else {
-        None
+        Vec::new()
     };
     
     Ok(values)

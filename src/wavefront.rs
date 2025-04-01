@@ -8,30 +8,27 @@ use binrw::BinRead;
 use na::Vec3;
 use nw_tex::{
     bcres::model::{
-        AttributeName, CgfxModelCommon, Face, FaceDescriptor, GlDataType, SubMesh, VertexBuffer,
-        VertexBufferAttribute,
+        AttributeName, CgfxModelCommon, GlDataType, VertexBuffer,
     },
     util::math,
 };
 
 #[allow(unused)]
 pub fn export_bcres_to_obj(common: &CgfxModelCommon) -> Result<String> {
-    let shapes = common.shapes.as_ref().unwrap();
     let mut all_vertices: Vec<Vec3> = Vec::new();
     let mut all_faces: Vec<Vec<[u32; 3]>> = Vec::new();
     
-    for shape in shapes {
-        let vertex_buffers = shape.vertex_buffers.as_ref().unwrap();
+    for shape in &common.shapes {
         let mut current_vertices: Vec<Vec3> = Vec::new();
         let mut current_faces: Vec<[u32; 3]> = Vec::new();
         
         // collect all vertices
-        for vb in vertex_buffers {
+        for vb in &shape.vertex_buffers {
             match vb {
                 VertexBuffer::Attribute(attribute) => {
                     if attribute.vertex_buffer_common.attribute_name == AttributeName::Position {
                         assert!(attribute.format == GlDataType::Float);
-                        let raw_bytes: &[u8] = attribute.raw_bytes.as_ref().unwrap();
+                        let raw_bytes: &[u8] = &attribute.raw_bytes;
                         let mut reader = Cursor::new(raw_bytes);
                         
                         for _ in 0..raw_bytes.len() / attribute.elements as usize {
@@ -48,23 +45,21 @@ pub fn export_bcres_to_obj(common: &CgfxModelCommon) -> Result<String> {
                     }
                 },
                 VertexBuffer::Interleaved(interleaved) => {
-                    let attributes: &[VertexBufferAttribute] = interleaved.attributes.as_ref().unwrap();
-                    
                     // check if this vb contains a position attribute
-                    if attributes.iter().all(|attr| attr.attribute_name != AttributeName::Position) {
+                    if interleaved.attributes.iter().all(|attr| attr.attribute_name != AttributeName::Position) {
                         continue;
                     }
                     
-                    let raw_bytes: &[u8] = interleaved.raw_bytes.as_ref().unwrap();
-                    let mut reader = Cursor::new(raw_bytes);
+                    let mut reader: Cursor<&[u8]> = Cursor::new(&interleaved.raw_bytes);
                     
-                    let vertex_byte_size: u32 = attributes.iter()
+                    let vertex_byte_size: u32 = interleaved.attributes
+                        .iter()
                         .map(|attr| attr.format.byte_size() * attr.elements)
                         .sum();
-                    let vertex_count = raw_bytes.len() / vertex_byte_size as usize;
+                    let vertex_count = interleaved.raw_bytes.len() / vertex_byte_size as usize;
                     
                     for _ in 0..vertex_count {
-                        for attr in attributes {
+                        for attr in &interleaved.attributes {
                             if attr.attribute_name == AttributeName::Position {
                                 assert!(attr.elements == 3 && attr.format == GlDataType::Float);
                                 let pos: Vec3 = math::Vec3::read(&mut reader)?.to_na() * attr.scale;
@@ -86,16 +81,10 @@ pub fn export_bcres_to_obj(common: &CgfxModelCommon) -> Result<String> {
         }
         
         // collect all faces
-        let sub_meshes: &[SubMesh] = shape.sub_meshes.as_ref().unwrap();
-        
-        for sub_mesh in sub_meshes {
-            let gfx_faces: &[Face] = sub_mesh.faces.as_ref().unwrap();
-            
-            for gfx_face in gfx_faces {
-                let face_descriptors: &[FaceDescriptor] = gfx_face.face_descriptors.as_ref().unwrap();
-                
-                for face_descriptor in face_descriptors {
-                    let indices: &[u16] = face_descriptor.indices.as_ref().unwrap();
+        for sub_mesh in &shape.sub_meshes {
+            for gfx_face in &sub_mesh.faces {
+                for face_descriptor in &gfx_face.face_descriptors {
+                    let indices: &[u16] = &face_descriptor.indices;
                     assert!(indices.len() % 3 == 0);
                     
                     let mut reader = indices.iter();

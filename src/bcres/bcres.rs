@@ -81,7 +81,7 @@ impl WriteContext {
 
 pub trait CgfxCollectionValue: Sized {
     // TODO: migrate this to use impl Read + Seek instead of Cursor
-    fn read_dict_value(reader: &mut Cursor<&[u8]>) -> Result<Self>;
+    fn read_dict_value<R: Read + Seek>(reader: &mut R) -> Result<Self>;
     fn write_dict_value(&self, writer: &mut Cursor<&mut Vec<u8>>, ctx: &mut WriteContext) -> Result<()>;
 }
 
@@ -91,7 +91,7 @@ where
     for<'a> <T as BinRead>::Args<'a>: Default,
     for<'a> <T as BinWrite>::Args<'a>: Default,
 {
-    fn read_dict_value(reader: &mut Cursor<&[u8]>) -> Result<Self> {
+    fn read_dict_value<R: Read + Seek>(reader: &mut R) -> Result<Self> {
         Ok(Self::read_le(reader)?)
     }
 
@@ -176,13 +176,16 @@ impl<T: CgfxCollectionValue> CgfxDict<T> {
         Self::from_reader(&mut cursor)
     }
     
-    pub fn from_reader(reader: &mut Cursor<&[u8]>) -> Result<Self> {
+    pub fn from_reader<R: Read + Seek>(reader: &mut R) -> Result<Self> {
         let magic_number = get_4_byte_string(reader)?;
         let tree_length = reader.read_u32::<LittleEndian>()?;
         let values_count = reader.read_u32::<LittleEndian>()?;
         
         let nodes_result: Result<Vec<CgfxNode<T>>> = (0..values_count + 1)
-            .map(|_| CgfxNode::from_reader(reader, Pointer::try_from(&reader)?))
+            .map(|_| {
+                let current_offset = Pointer::current(reader)?;
+                CgfxNode::from_reader(reader, current_offset)
+            })
             .collect();
         
         let mut nodes = nodes_result?;

@@ -116,7 +116,7 @@ pub enum CgfxTexture {
     Image(CgfxTextureCommon, Option<ImageData>),
 }
 
-fn image_data(reader: &mut Cursor<&[u8]>) -> Result<Option<ImageData>> {
+fn image_data<R: Read + Seek>(reader: &mut R) -> Result<Option<ImageData>> {
     let image_data_pointer = Pointer::read(reader)?;
     
     let data = image_data_pointer
@@ -125,7 +125,7 @@ fn image_data(reader: &mut Cursor<&[u8]>) -> Result<Option<ImageData>> {
             reader.seek(SeekFrom::Current(i64::from(pointer) - 4))?;
             
             let mut data = ImageData::read(reader)?;
-            reader.set_position(data.buffer_pointer.unwrap().into());
+            reader.seek(SeekFrom::Start(data.buffer_pointer.unwrap().into()))?;
             
             let mut image_bytes: Vec<u8> = vec![0; data.buffer_length.try_into()?];
             reader.read_exact(&mut image_bytes)?;
@@ -139,7 +139,7 @@ fn image_data(reader: &mut Cursor<&[u8]>) -> Result<Option<ImageData>> {
 }
 
 impl CgfxTexture {
-    pub fn from_reader(reader: &mut Cursor<&[u8]>) -> Result<Self> {
+    pub fn from_reader<R: Read + Seek>(reader: &mut R) -> Result<Self> {
         let texture_type_discriminant = reader.read_u32::<LittleEndian>()?;
         
         let common = CgfxTextureCommon::read(reader)?;
@@ -232,7 +232,7 @@ impl CgfxTexture {
 }
 
 impl CgfxCollectionValue for CgfxTexture {
-    fn read_dict_value(reader: &mut Cursor<&[u8]>) -> Result<Self> {
+    fn read_dict_value<R: Read + Seek>(reader: &mut R) -> Result<Self> {
         Self::from_reader(reader)
     }
     

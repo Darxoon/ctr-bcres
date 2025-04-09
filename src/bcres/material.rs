@@ -1,4 +1,4 @@
-use std::io::{Cursor, Seek, SeekFrom};
+use std::io::{Cursor, Read, Seek, SeekFrom};
 
 use anyhow::{bail, Result};
 use array_init::try_array_init;
@@ -39,7 +39,7 @@ pub struct CgfxMaterial {
 }
 
 impl CgfxCollectionValue for CgfxMaterial {
-    fn read_dict_value(reader: &mut Cursor<&[u8]>) -> Result<Self> {
+    fn read_dict_value<R: Read + Seek>(reader: &mut R) -> Result<Self> {
         let magic = reader.read_u32::<LittleEndian>()?;
         if magic != 0x8000000 {
             bail!("Incorrect magic number, expected 0x8000000 for Material but got 0x{magic:x}")

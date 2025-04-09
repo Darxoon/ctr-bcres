@@ -1,5 +1,5 @@
 use std::{
-    io::{Cursor, Seek, SeekFrom},
+    io::{Cursor, Read, Seek, SeekFrom},
     ops::{Deref, DerefMut},
     slice::from_raw_parts,
 };
@@ -19,7 +19,7 @@ use crate::{
 
 use super::{
     bcres::{CgfxCollectionValue, CgfxDict, WriteContext}, material::CgfxMaterial, util::{
-        read_inline_list, read_pointer_list, read_pointer_list_ext, CgfxNodeHeader, CgfxObjectHeader, CgfxTransform
+        read_inline_list, read_pointer_list, read_pointer_list_ext, CgfxNodeHeader, CgfxObjectHeader, CgfxTransform,
     }
 };
 
@@ -48,7 +48,7 @@ pub enum CgfxModel {
 }
 
 impl CgfxModel {
-    pub fn from_reader(reader: &mut Cursor<&[u8]>) -> Result<Self> {
+    pub fn from_reader<R: Read + Seek>(reader: &mut R) -> Result<Self> {
         let discriminant = reader.read_u32::<LittleEndian>()?;
         let cgfx_object_header = CgfxObjectHeader::read(reader)?;
         let cgfx_node_header = CgfxNodeHeader::read(reader)?;
@@ -61,11 +61,11 @@ impl CgfxModel {
         
         // materials
         let material_count = reader.read_u32::<LittleEndian>()?;
-        let material_ptr = Pointer::read(reader)?;
+        let material_ptr = Pointer::read_relative(reader)?;
         
         let materials = if let Some(material_ptr) = material_ptr {
             scoped_reader_pos!(reader);
-            reader.set_position(reader.position() + u64::from(material_ptr) - 4);
+            reader.seek(SeekFrom::Start(material_ptr.into()))?;
             let dict: CgfxDict<CgfxMaterial> = CgfxDict::from_reader(reader)?;
             
             assert!(dict.values_count == material_count);
@@ -79,11 +79,11 @@ impl CgfxModel {
         
         // mesh node visibilities
         let mesh_node_visibility_count = reader.read_u32::<LittleEndian>()?;
-        let mesh_node_visibility_ptr = Pointer::read(reader)?;
+        let mesh_node_visibility_ptr = Pointer::read_relative(reader)?;
         
         let mesh_node_visibilities = if let Some(mesh_node_visibility_ptr) = mesh_node_visibility_ptr {
             scoped_reader_pos!(reader);
-            reader.set_position(reader.position() + u64::from(mesh_node_visibility_ptr) - 4);
+            reader.seek(SeekFrom::Start(mesh_node_visibility_ptr.into()))?;
             let dict: CgfxDict<()> = CgfxDict::from_reader(reader)?;
             
             assert!(dict.values_count == mesh_node_visibility_count);
@@ -134,7 +134,7 @@ impl CgfxModel {
 }
 
 impl CgfxCollectionValue for CgfxModel {
-    fn read_dict_value(reader: &mut Cursor<&[u8]>) -> Result<Self> {
+    fn read_dict_value<R: Read + Seek>(reader: &mut R) -> Result<Self> {
         Self::from_reader(reader)
     }
 
@@ -182,7 +182,7 @@ pub struct Shape {
 }
 
 impl Shape {
-    pub fn from_reader(reader: &mut Cursor<&[u8]>) -> Result<Self> {
+    pub fn from_reader<R: Read + Seek>(reader: &mut R) -> Result<Self> {
         assert!(reader.read_u32::<LittleEndian>()? == 0x10000001);
         
         let cgfx_object_header = CgfxObjectHeader::read(reader)?;
@@ -221,7 +221,7 @@ impl Shape {
 }
 
 impl CgfxCollectionValue for Shape {
-    fn read_dict_value(reader: &mut Cursor<&[u8]>) -> Result<Self> {
+    fn read_dict_value<R: Read + Seek>(reader: &mut R) -> Result<Self> {
         Self::from_reader(reader)
     }
 
@@ -257,7 +257,7 @@ pub struct SubMesh {
 }
 
 impl SubMesh {
-    pub fn from_reader(reader: &mut Cursor<&[u8]>) -> Result<Self> {
+    pub fn from_reader<R: Read + Seek>(reader: &mut R) -> Result<Self> {
         let bone_index_count = reader.read_u32::<LittleEndian>()?;
         let bone_index_ptr = Pointer::read_relative(reader)?;
         
@@ -290,7 +290,7 @@ impl SubMesh {
 }
 
 impl CgfxCollectionValue for SubMesh {
-    fn read_dict_value(reader: &mut Cursor<&[u8]>) -> Result<Self> {
+    fn read_dict_value<R: Read + Seek>(reader: &mut R) -> Result<Self> {
         Self::from_reader(reader)
     }
 
@@ -308,7 +308,7 @@ pub struct Face {
 }
 
 impl Face {
-    pub fn from_reader(reader: &mut Cursor<&[u8]>) -> Result<Self> {
+    pub fn from_reader<R: Read + Seek>(reader: &mut R) -> Result<Self> {
         let face_descriptors: Vec<FaceDescriptor> = read_pointer_list(reader)?;
         let buffer_objs: Vec<u32> = read_inline_list(reader)?;
         let flags = reader.read_u32::<LittleEndian>()?;
@@ -328,7 +328,7 @@ impl Face {
 }
 
 impl CgfxCollectionValue for Face {
-    fn read_dict_value(reader: &mut Cursor<&[u8]>) -> Result<Self> {
+    fn read_dict_value<R: Read + Seek>(reader: &mut R) -> Result<Self> {
         Self::from_reader(reader)
     }
 
@@ -351,7 +351,7 @@ pub struct FaceDescriptor {
 }
 
 impl FaceDescriptor {
-    pub fn from_reader(reader: &mut Cursor<&[u8]>) -> Result<Self> {
+    pub fn from_reader<R: Read + Seek>(reader: &mut R) -> Result<Self> {
         let format = GlDataType::read(reader)?;
         assert!(format.byte_size() == 1 || format.byte_size() == 2);
         
@@ -401,7 +401,7 @@ impl FaceDescriptor {
 }
 
 impl CgfxCollectionValue for FaceDescriptor {
-    fn read_dict_value(reader: &mut Cursor<&[u8]>) -> Result<Self> {
+    fn read_dict_value<R: Read + Seek>(reader: &mut R) -> Result<Self> {
         Self::from_reader(reader)
     }
 
@@ -485,7 +485,7 @@ pub enum VertexBuffer {
 }
 
 impl VertexBuffer {
-    fn from_reader(reader: &mut Cursor<&[u8]>) -> Result<Self> {
+    fn from_reader<R: Read + Seek>(reader: &mut R) -> Result<Self> {
         let discriminant = reader.read_u32::<LittleEndian>()?;
         
         let vertex_buffer = match discriminant {
@@ -504,7 +504,7 @@ impl VertexBuffer {
 }
 
 impl CgfxCollectionValue for VertexBuffer {
-    fn read_dict_value(reader: &mut Cursor<&[u8]>) -> Result<Self> {
+    fn read_dict_value<R: Read + Seek>(reader: &mut R) -> Result<Self> {
         Self::from_reader(reader)
     }
 
@@ -532,7 +532,7 @@ pub struct VertexBufferAttribute {
 }
 
 impl VertexBufferAttribute {
-    fn from_reader(reader: &mut Cursor<&[u8]>) -> Result<Self> {
+    fn from_reader<R: Read + Seek>(reader: &mut R) -> Result<Self> {
         let vertex_buffer_common = VertexBufferCommon::read(reader)?;
         let buffer_obj = reader.read_u32::<LittleEndian>()?;
         let location_flag = reader.read_u32::<LittleEndian>()?;
@@ -567,7 +567,7 @@ impl VertexBufferAttribute {
 }
 
 impl CgfxCollectionValue for VertexBufferAttribute {
-    fn read_dict_value(reader: &mut Cursor<&[u8]>) -> Result<Self> {
+    fn read_dict_value<R: Read + Seek>(reader: &mut R) -> Result<Self> {
         Self::from_reader(reader)
     }
 
@@ -607,7 +607,7 @@ pub struct VertexBufferInterleaved {
 }
 
 impl VertexBufferInterleaved {
-    fn from_reader(reader: &mut Cursor<&[u8]>) -> Result<Self> {
+    fn from_reader<R: Read + Seek>(reader: &mut R) -> Result<Self> {
         let vertex_buffer_common = VertexBufferCommon::read(reader)?;
         let buffer_obj = reader.read_u32::<LittleEndian>()?;
         let location_flag = reader.read_u32::<LittleEndian>()?;
@@ -644,7 +644,7 @@ pub struct VertexBufferFixed {
 }
 
 impl VertexBufferFixed {
-    pub fn from_reader(reader: &mut Cursor<&[u8]>) -> Result<Self> {
+    pub fn from_reader<R: Read + Seek>(reader: &mut R) -> Result<Self> {
         let vertex_buffer_common = VertexBufferCommon::read(reader)?;
         let format = GlDataType::read(reader)?;
         let elements = reader.read_u32::<LittleEndian>()?;

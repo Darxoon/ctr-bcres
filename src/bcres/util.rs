@@ -1,6 +1,6 @@
 use std::{
     fmt::Debug,
-    io::{Cursor, Read, Seek, SeekFrom, Write},
+    io::{Read, Seek, SeekFrom, Write},
     slice,
     str::from_utf8,
 };
@@ -95,11 +95,11 @@ pub fn brw_relative_pointer() -> BinResult<Option<Pointer>> {
     Ok(Some(Pointer::from(reader_pos + pointer)))
 }
 
-pub fn read_pointer_list<T: CgfxCollectionValue>(reader: &mut Cursor<&[u8]>) -> Result<Vec<T>> {
+pub fn read_pointer_list<T: CgfxCollectionValue, R: Read + Seek>(reader: &mut R) -> Result<Vec<T>> {
     read_pointer_list_ext(reader, None)
 }
 
-pub fn read_pointer_list_ext<T: CgfxCollectionValue>(reader: &mut Cursor<&[u8]>, magic: Option<u32>) -> Result<Vec<T>> {
+pub fn read_pointer_list_ext<T: CgfxCollectionValue, R: Read + Seek>(reader: &mut R, magic: Option<u32>) -> Result<Vec<T>> {
     let count = reader.read_u32::<LittleEndian>()?;
     let list_ptr = Pointer::read_relative(reader)?;
     
@@ -133,7 +133,7 @@ pub fn read_pointer_list_ext<T: CgfxCollectionValue>(reader: &mut Cursor<&[u8]>,
     Ok(values)
 }
 
-pub fn read_inline_list<T: CgfxCollectionValue>(reader: &mut Cursor<&[u8]>) -> Result<Vec<T>> {
+pub fn read_inline_list<T: CgfxCollectionValue, R: Read + Seek>(reader: &mut R) -> Result<Vec<T>> {
     let count = reader.read_u32::<LittleEndian>()?;
     let list_ptr = Pointer::read(reader)?;
     

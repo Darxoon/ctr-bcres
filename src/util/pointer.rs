@@ -90,6 +90,10 @@ impl Pointer {
         }
     }
     
+    pub fn current<S: Seek>(seek: &mut S) -> Result<Self> {
+        Ok(Pointer(seek.stream_position()?.try_into()?))
+    }
+    
     pub fn read(reader: &mut impl Read) -> Result<Option<Pointer>> {
         let value = reader.read_u32::<LittleEndian>()?;
         
@@ -169,6 +173,7 @@ impl<T> TryFrom<&mut Cursor<T>> for Pointer {
         Ok(Pointer(value.position().try_into()?))
     }
 }
+
 impl<T> TryFrom<&&mut Cursor<T>> for Pointer {
     type Error = TryFromIntError;
 

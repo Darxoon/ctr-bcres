@@ -8,7 +8,8 @@ use binrw::BinRead;
 use na::Vec3;
 use nw_tex::{
     bcres::model::{
-        AttributeName, CgfxModelCommon, GlDataType, VertexBuffer,
+        mesh::{AttributeName, GlDataType, VertexBuffer},
+        CgfxModelCommon,
     },
     util::math,
 };

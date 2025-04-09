@@ -11,9 +11,8 @@ use nw_tex::{
     bcres::{
         bcres::CgfxContainer,
         image_codec::{decode_swizzled_buffer, RgbaColor},
-        material::TextureMapper,
         model::{
-            AttributeName, CgfxModelCommon, GlDataType, VertexBuffer,
+            material::TextureMapper, mesh::{AttributeName, GlDataType, VertexBuffer}, CgfxModelCommon
         },
         texture::{CgfxTexture, CgfxTextureCommon, ImageData},
     },

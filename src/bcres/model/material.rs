@@ -7,17 +7,16 @@ use byteorder::{LittleEndian, ReadBytesExt};
 use na::Matrix3x4;
 
 use crate::{
+    bcres::{
+        bcres::{CgfxCollectionValue, WriteContext},
+        image_codec::RgbaColor,
+        util::{brw_read_string, brw_relative_pointer, brw_write_zero, CgfxBox, CgfxObjectHeader},
+    },
     scoped_reader_pos,
     util::{
         math::{SerializableMatrix, Vec2, Vec4},
         pointer::Pointer,
     },
-};
-
-use super::{
-    bcres::{CgfxCollectionValue, WriteContext},
-    image_codec::RgbaColor,
-    util::{brw_read_string, brw_relative_pointer, brw_write_zero, CgfxBox, CgfxObjectHeader},
 };
 
 #[derive(Clone, Debug, PartialEq)]

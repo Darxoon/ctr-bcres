@@ -4,12 +4,12 @@ use anyhow::Result;
 use gfx_model::{load_bcres_model, load_bcres_textures};
 use material::{BasicMaterial, RlMaterial};
 use mesh::{BasicMesh, RlMesh};
-use nw_tex::bcres::bcres::CgfxContainer;
+use nw_tex::bcres::CgfxContainer;
 use raylib::{
     camera::Camera3D,
     color::Color,
-    ffi::{self, rlGetCullDistanceFar, rlGetCullDistanceNear, CameraMode, GetScreenHeight, GetScreenWidth, KeyboardKey, DEG2RAD},
-    math::{Matrix, Vector3, Vector4},
+    ffi::{self, CameraMode, KeyboardKey, DEG2RAD},
+    math::Vector3,
     models::RaylibMaterial,
     prelude::{RaylibDraw, RaylibDraw3D, RaylibMode3DExt},
     RaylibHandle,
@@ -28,7 +28,7 @@ pub struct BasicModel {
     pub materials: Vec<BasicMaterial>,
 }
 
-fn init_bcres_model() -> Result<BasicModel> {
+fn load_default_scene() -> Result<BasicModel> {
     let buf = match fs::read("testing/hei_5_00.bcres") {
         Ok(buf) => buf,
         Err(error) => match error.kind() {
@@ -50,7 +50,9 @@ fn init_bcres_model() -> Result<BasicModel> {
     
     for node in container.models.unwrap().nodes {
         if let Some(model) = node.value {
-            let model = load_bcres_model(model.common(), &textures, 0.01, materials.len() as u32)?;
+            let model = load_bcres_model(&model, &textures, 0.01,
+                materials.len() as u32)?;
+            
             materials.extend_from_slice(&model.materials);
             meshes.extend_from_slice(&model.meshes);
         }
@@ -101,7 +103,7 @@ fn main() -> Result<()> {
         60.0,
     );
     
-    let model = init_bcres_model()?;
+    let model = load_default_scene()?;
     
     let mut materials: Vec<RlMaterial> = Vec::with_capacity(model.materials.len());
     
@@ -128,34 +130,24 @@ fn main() -> Result<()> {
     while !handle.window_should_close() {
         update_cam(&mut handle, &mut cam);
         
-        let perspective = {
-            let width = unsafe { GetScreenWidth() } as f32;
-            let height = unsafe { GetScreenHeight() } as f32;
-            let near_plane = unsafe { rlGetCullDistanceNear() } as f32;
-            let far_plane = unsafe { rlGetCullDistanceFar() } as f32;
-            
-            Matrix::perspective(cam.fovy * DEG2RAD as f32, width / height, near_plane, far_plane)
-        };
-        
-        let view = Matrix::look_at(cam.position, cam.target, cam.up);
-        
+        // setup rendering
         let mut draw = handle.begin_drawing(&thread);
         draw.clear_background(Color::GRAY);
         
         let mut mode3d = draw.begin_mode3D(cam);
         
-        let mut sortable_meshes: Vec<(&RlMesh, f32)> = meshes.iter().map(|mesh| {
-            let pos = Vector4::new(mesh.center_position.x, mesh.center_position.y, mesh.center_position.z, 1.0);
-            let pos = pos.transform(view);
-            let pos = pos.transform(perspective);
-            (mesh, pos.z)
-        }).collect();
+        // sort meshes
+        let mut sortable_meshes: Vec<(&RlMesh, f32)> = Vec::with_capacity(meshes.len());
+        for mesh in &meshes {
+            sortable_meshes.push((mesh, -cam.position.distance_to(mesh.center_position.transform_with(mesh.bone_matrix))));
+        }
         
         sortable_meshes.sort_by(|a, b| a.1.total_cmp(&b.1));
         
+        // render meshes
         for (mesh, _) in sortable_meshes {
             let material = &materials[mesh.material_id as usize];
-            mode3d.draw_mesh(mesh, material.into(), Matrix::identity());
+            mode3d.draw_mesh(mesh, material.into(), mesh.bone_matrix);
         }
     }
     

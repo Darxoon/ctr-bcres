@@ -108,35 +108,47 @@ pub struct CgfxNode<T: CgfxCollectionValue> {
     pub right_node_index: u16,
     
     pub name: Option<String>,
-    pub value: Option<T>,
     
-    file_offset: Pointer,
-    name_pointer: Option<Pointer>,
-    value_pointer: Option<Pointer>,
+    pub value_pointer: Option<Pointer>,
+    pub value: Option<T>,
 }
 
 impl<T: CgfxCollectionValue> CgfxNode<T> {
-    pub fn from_reader(reader: &mut impl Read, start_file_offset: Pointer) -> Result<Self> {
-        let file_offset = start_file_offset;
-        
+    pub fn from_reader<R: Read + Seek>(reader: &mut R) -> Result<Self> {
         let reference_bit = reader.read_u32::<LittleEndian>()?;
         let left_node_index = reader.read_u16::<LittleEndian>()?;
         let right_node_index = reader.read_u16::<LittleEndian>()?;
         
-        let name_pointer = Pointer::read(reader)?;
-        let value_pointer = Pointer::read(reader)?;
+        let name_pointer = Pointer::read_relative(reader)?;
+        let value_pointer = Pointer::read_relative(reader)?;
+        
+        let name = if let Some(name_pointer) = name_pointer {
+            scoped_reader_pos!(reader);
+            reader.seek(SeekFrom::Start(name_pointer.into()))?;
+            
+            Some(read_string(reader)?)
+        } else {
+            None
+        };
+        
+        let value = if let Some(value_pointer) = value_pointer {
+            scoped_reader_pos!(reader);
+            reader.seek(SeekFrom::Start(value_pointer.into()))?;
+            
+            Some(T::read_dict_value(reader)?)
+        } else {
+            None
+        };
         
         Ok(CgfxNode {
             reference_bit,
             left_node_index,
             right_node_index,
             
-            name: None,
-            value: None,
+            name,
             
-            file_offset,
-            name_pointer,
             value_pointer,
+            value,
         })
     }
     
@@ -181,34 +193,9 @@ impl<T: CgfxCollectionValue> CgfxDict<T> {
         let tree_length = reader.read_u32::<LittleEndian>()?;
         let values_count = reader.read_u32::<LittleEndian>()?;
         
-        let nodes_result: Result<Vec<CgfxNode<T>>> = (0..values_count + 1)
-            .map(|_| {
-                let current_offset = Pointer::current(reader)?;
-                CgfxNode::from_reader(reader, current_offset)
-            })
-            .collect();
-        
-        let mut nodes = nodes_result?;
-        
-        for node in &mut nodes {
-            if let Some(name_pointer) = node.name_pointer {
-                scoped_reader_pos!(reader);
-                
-                let string_offset: Pointer = node.file_offset + 8 + name_pointer;
-                reader.seek(SeekFrom::Start(string_offset.into()))?;
-                
-                node.name = Some(read_string(reader)?);
-            }
-            
-            if let Some(value_pointer) = node.value_pointer {
-                scoped_reader_pos!(reader);
-                
-                let value_offset: Pointer = node.file_offset + 12 + value_pointer;
-                reader.seek(SeekFrom::Start(value_offset.into()))?;
-                
-                node.value = Some(T::read_dict_value(reader)?);
-            }
-        }
+        let nodes = (0..values_count + 1)
+            .map(|_| CgfxNode::from_reader(reader))
+            .collect::<Result<Vec<CgfxNode<T>>>>()?;
         
         Ok(CgfxDict {
             magic_number,
@@ -469,20 +456,16 @@ impl CgfxContainer {
                     left_node_index: 1,
                     right_node_index: 0,
                     name: None,
-                    value: None,
-                    file_offset: Pointer(0),
-                    name_pointer: None,
                     value_pointer: None,
+                    value: None,
                 },
                 CgfxNode::<CgfxTexture> {
                     reference_bit: ((name_len << 3) - 2).try_into().unwrap(),
                     left_node_index: 0,
                     right_node_index: 1,
                     name: Some(name),
-                    value: Some(texture),
-                    file_offset: Pointer(0),
-                    name_pointer: None,
                     value_pointer: None,
+                    value: Some(texture),
                 },
             ],
         };

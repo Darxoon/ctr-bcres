@@ -35,6 +35,7 @@ pub struct Mesh {
     
     pub visible: u8,
     pub render_priority: u8,
+    
     pub mesh_node_index: u16,
     pub primitive_index: u32,
     
@@ -129,7 +130,7 @@ pub enum SubMeshSkinning {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SubMesh {
-    pub bone_indices: Option<Vec<u32>>,
+    pub bone_indices: Vec<u32>,
     pub skinning: SubMeshSkinning,
     pub faces: Vec<Face>,
 }
@@ -147,9 +148,9 @@ impl SubMesh {
             
             reader.seek(SeekFrom::Start(bone_index_ptr.into()))?;
             reader.read_u32_into::<LittleEndian>(&mut bone_indices)?;
-            Some(bone_indices)
+            bone_indices
         } else {
-            None
+            Vec::new()
         };
         
         let skinning: SubMeshSkinning = SubMeshSkinning::read(reader)?;

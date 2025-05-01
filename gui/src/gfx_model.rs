@@ -2,23 +2,22 @@ use std::{
     collections::HashMap,
     io::{Cursor, Seek, SeekFrom},
     mem::transmute,
-    ops::Deref,
+    ops::Deref, rc::Rc,
 };
 
 use anyhow::{anyhow, Result};
 use binrw::BinRead;
 use nw_tex::{
     bcres::{
-        bcres::CgfxContainer,
         image_codec::{decode_swizzled_buffer, RgbaColor},
         model::{
-            material::TextureMapper, mesh::{AttributeName, GlDataType, VertexBuffer}, CgfxModelCommon
+            material::TextureMapper, mesh::{AttributeName, GlDataType, VertexBuffer}, skeleton::CgfxBone, CgfxModel
         },
-        texture::{CgfxTexture, CgfxTextureCommon, ImageData},
+        texture::{CgfxTexture, CgfxTextureCommon, ImageData}, CgfxContainer,
     },
-    util::math::{Vec2, Vec3},
+    util::{math::{Vec2, Vec3}, pointer::Pointer},
 };
-use raylib::math::{Vector2, Vector3};
+use raylib::math::{Matrix, Vector2, Vector3};
 
 use crate::{
     material::{BasicImage, BasicMaterial},
@@ -74,8 +73,10 @@ pub fn load_bcres_textures(container: &CgfxContainer) -> Result<HashMap<String, 
     Ok(result)
 }
 
-pub fn load_bcres_model(common: &CgfxModelCommon, textures: &HashMap<String, BasicImage>,
-            global_scale: f32, start_material_id: u32) -> Result<BasicModel> {
+pub fn load_bcres_model(
+    model: &CgfxModel, textures: &HashMap<String, BasicImage>, global_scale: f32, start_material_id: u32
+) -> Result<BasicModel> {   
+    let common = model.common();
     
     // materials
     let gfx_materials = common.materials.as_ref().unwrap().nodes.deref();
@@ -114,6 +115,43 @@ pub fn load_bcres_model(common: &CgfxModelCommon, textures: &HashMap<String, Bas
         }
     }
     
+    // bones
+    let mut bone_transforms: Vec<Matrix> = Vec::new();
+    
+    if let CgfxModel::Skeletal(_, skeleton) = model {
+        let bones = skeleton.bones.as_ref().unwrap();
+        let mut all_bones: HashMap<Pointer, &CgfxBone> = HashMap::new();
+        
+        for node in &bones.nodes {
+            if let Some(value) = &node.value {
+                all_bones.insert(node.value_pointer.unwrap(), value);
+            }
+        }
+        
+        for node in &bones.nodes {
+            if node.value.is_none() {
+                continue;
+            }
+            
+            let mut bone = node.value.as_ref().unwrap();
+            let mut matrix = Matrix::translate(
+                bone.translation.x * global_scale,
+                bone.translation.y * global_scale,
+                bone.translation.z * global_scale);
+            
+            while let Some(parent) = all_bones.get(&bone.parent_ptr.unwrap_or(Pointer::default())) {
+                matrix *= Matrix::translate(
+                    parent.translation.x * global_scale,
+                    parent.translation.y * global_scale,
+                    parent.translation.z * global_scale);
+                
+                bone = *parent;
+            }
+            
+            bone_transforms.push(matrix);
+        }
+    }
+    
     // meshes
     let mut out_meshes: Vec<BasicMesh> = Vec::new();
     
@@ -126,7 +164,6 @@ pub fn load_bcres_model(common: &CgfxModelCommon, textures: &HashMap<String, Bas
         let mut vertex_positions: Vec<Vector3> = Vec::new();
         let mut vertex_uvs: Vec<Vector2> = Vec::new();
         let mut vertex_colors: Vec<RgbaColor> = Vec::new();
-        let mut faces: Vec<[u16; 3]> = Vec::new();
         
         // collect all vertices
         for vb in &shape.vertex_buffers {
@@ -202,8 +239,14 @@ pub fn load_bcres_model(common: &CgfxModelCommon, textures: &HashMap<String, Bas
             }
         }
         
+        let vertex_positions: Rc<[Vector3]> = Rc::from(vertex_positions);
+        let vertex_uvs: Rc<[Vector2]> = Rc::from(vertex_uvs);
+        let vertex_colors: Rc<[RgbaColor]> = Rc::from(vertex_colors);
+        
         // collect all faces
         for sub_mesh in &shape.sub_meshes {
+            let mut faces: Vec<[u16; 3]> = Vec::new();
+            
             for gfx_face in &sub_mesh.faces {
                 for face_descriptor in &gfx_face.face_descriptors {
                     let indices: &[u16] = &face_descriptor.indices;
@@ -220,17 +263,23 @@ pub fn load_bcres_model(common: &CgfxModelCommon, textures: &HashMap<String, Bas
                     }
                 }
             }
+            
+            out_meshes.push(BasicMesh {
+                vertex_positions: vertex_positions.clone(),
+                vertex_uvs: vertex_uvs.clone(),
+                vertex_colors: vertex_colors.clone(),
+                faces,
+                
+                center: vec3_to_rl(shape.bounding_box.as_ref().unwrap().center),
+                material_id: mesh.material_index + start_material_id,
+                bone_matrix: sub_mesh.bone_indices
+                    .iter()
+                    .map(|x| bone_transforms[*x as usize])
+                    .reduce(|a, b| a * b)
+                    .unwrap_or(Matrix::identity()),
+            });
         }
         
-        out_meshes.push(BasicMesh {
-            vertex_positions,
-            vertex_uvs,
-            vertex_colors,
-            faces,
-            
-            center: vec3_to_rl(shape.bounding_box.as_ref().unwrap().center),
-            material_id: mesh.material_index + start_material_id,
-        });
     }
     
     Ok(BasicModel {

@@ -7,6 +7,7 @@ use binrw::BinRead;
 use byteorder::{LittleEndian, ReadBytesExt};
 use material::CgfxMaterial;
 use mesh::{Mesh, Shape};
+use skeleton::CgfxSkeleton;
 
 use crate::{
     scoped_reader_pos,
@@ -21,6 +22,7 @@ use super::{
 
 pub mod material;
 pub mod mesh;
+pub mod skeleton;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct CgfxModelCommon {
@@ -43,7 +45,7 @@ pub struct CgfxModelCommon {
 #[derive(Debug, Clone, PartialEq)]
 pub enum CgfxModel {
     Standard(CgfxModelCommon),
-    Skeletal(CgfxModelCommon, ()),
+    Skeletal(CgfxModelCommon, CgfxSkeleton),
 }
 
 impl CgfxModel {
@@ -110,7 +112,17 @@ impl CgfxModel {
         
         let model = match discriminant {
             0x40000012 => CgfxModel::Standard(common),
-            0x40000092 => CgfxModel::Skeletal(common, ()),
+            0x40000092 => {
+                let skeleton_ptr = Pointer::read_relative(reader)?
+                    .ok_or_else(|| anyhow!("Skeleton can not be null"))?;
+                
+                scoped_reader_pos!(reader);
+                reader.seek(SeekFrom::Start(skeleton_ptr.into()))?;
+                
+                let skeleton = CgfxSkeleton::from_reader(reader)?;
+                
+                CgfxModel::Skeletal(common, skeleton)
+            },
             _ => return Err(anyhow!("Invalid model type discriminant {:x}", discriminant)),
         };
         

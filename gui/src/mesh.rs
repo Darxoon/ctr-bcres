@@ -1,28 +1,30 @@
-use std::{pin::Pin, ptr, slice::from_raw_parts};
+use std::{pin::Pin, ptr, rc::Rc, slice::from_raw_parts};
 
 use anyhow::Result;
 use nw_tex::bcres::image_codec::RgbaColor;
 use raylib::{
     ffi,
-    math::{Vector2, Vector3},
+    math::{Vector2, Vector3, Matrix},
     models,
 };
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct BasicMesh {
-    pub vertex_positions: Vec<Vector3>,
-    pub vertex_uvs: Vec<Vector2>,
-    pub vertex_colors: Vec<RgbaColor>,
+    pub vertex_positions: Rc<[Vector3]>,
+    pub vertex_uvs: Rc<[Vector2]>,
+    pub vertex_colors: Rc<[RgbaColor]>,
     pub faces: Vec<[u16; 3]>,
     
     pub center: Vector3,
     pub material_id: u32,
+    pub bone_matrix: Matrix,
 }
 
 pub struct RlMesh {
     pub mesh: models::Mesh,
     pub center_position: Vector3,
     pub material_id: u32,
+    pub bone_matrix: Matrix,
     
     // are pointed to by the Mesh
     _vertex_buffer: Pin<Box<[f32]>>,
@@ -122,6 +124,7 @@ impl RlMesh {
             mesh: unsafe { models::Mesh::from_raw(mesh) },
             center_position: basic_mesh.center,
             material_id: basic_mesh.material_id,
+            bone_matrix: basic_mesh.bone_matrix,
             
             _vertex_buffer: vertices,
             _vertex_uvs: vertex_uvs,

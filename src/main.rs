@@ -4,14 +4,13 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use anyhow::{anyhow, Error, Result};
+use anyhow::{Error, Result};
 use clap::{ArgAction, Parser, ValueEnum};
 use compression_cache::{CachedFile, CompressionCache};
 use nw_tex::{
     bcres::{
-        bcres::CgfxContainer,
         image_codec::{decode_swizzled_buffer, to_png, ENCODABLE_FORMATS},
-        texture::{CgfxTexture, CgfxTextureCommon, PicaTextureFormat},
+        texture::{CgfxTexture, CgfxTextureCommon, PicaTextureFormat}, CgfxContainer, CgfxNode,
     },
     util::blz::{blz_decode, blz_encode},
     ArchiveRegistry, RegistryItem,
@@ -136,7 +135,7 @@ fn bcres_buffer_into_png(bcres_buffer: &[u8], id: &str) -> Result<(Vec<u8>, Pica
     assert!(gfx.textures.is_some(), "Texture archive bcres file has to contain a texture section");
     
     let textures = gfx.textures.as_ref().unwrap();
-    let texture_node: &nw_tex::bcres::bcres::CgfxNode<CgfxTexture> = textures.nodes.iter()
+    let texture_node: &CgfxNode<CgfxTexture> = textures.nodes.iter()
         .find(|node| node.value.is_some())
         .expect("Texture archive bcres file has to contain at least one texture");
     

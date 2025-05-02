@@ -21,6 +21,7 @@ mod mesh;
 
 const MOVEMENT_SPEED: f32 = 8.0;
 const MOUSE_SPEED: f32 = 0.1;
+const GLOBAL_WORLD_SCALE: f32 = 0.01;
 
 #[derive(Clone, Debug, PartialEq, Default)]
 pub struct BasicModel {
@@ -50,7 +51,7 @@ fn load_default_scene() -> Result<BasicModel> {
     
     for node in container.models.unwrap().nodes {
         if let Some(model) = node.value {
-            let model = load_bcres_model(&model, &textures, 0.01,
+            let model = load_bcres_model(&model, &textures, GLOBAL_WORLD_SCALE,
                 materials.len() as u32)?;
             
             materials.extend_from_slice(&model.materials);
@@ -106,17 +107,18 @@ fn main() -> Result<()> {
     let model = load_default_scene()?;
     
     let mut materials: Vec<RlMaterial> = Vec::with_capacity(model.materials.len());
-    
     for mat in &model.materials {
         let mut mat = RlMaterial::new(&mut handle, &thread, mat)?;
         assert!(mat.material.is_material_valid());
         materials.push(mat);
     }
+    
     let mut meshes: Vec<RlMesh> = model
         .meshes
         .iter()
         .map(RlMesh::new)
         .collect::<Result<Vec<RlMesh>>>()?;
+    
     for mesh in &mut meshes {
         let ffimesh: &mut ffi::Mesh = mesh.as_mut();
         

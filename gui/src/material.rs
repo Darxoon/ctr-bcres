@@ -3,11 +3,10 @@ use std::{os::raw::c_void, pin::Pin, ptr, slice::from_raw_parts};
 use anyhow::Result;
 use nw_tex::bcres::image_codec::RgbaColor;
 use raylib::{
-    ffi::{self, MaterialMapIndex, PixelFormat},
-    models::{Material, RaylibMaterial, WeakMaterial},
-    texture::{Image, RaylibTexture2D, Texture2D},
-    RaylibHandle, RaylibThread,
+    ffi::{self, MaterialMapIndex, PixelFormat}, models::{Material, RaylibMaterial, WeakMaterial}, texture::{Image, RaylibTexture2D, Texture2D}, RaylibHandle, RaylibThread
 };
+
+const ALPHA_DISCARD: &str = include_str!("../res/alpha_discard.fs");
 
 #[derive(Clone, Debug, PartialEq, Default)]
 pub struct BasicImage {
@@ -101,7 +100,12 @@ pub struct RlMaterial {
 
 impl RlMaterial {
     pub fn new(handle: &mut RaylibHandle, thread: &RaylibThread, basic_mat: &BasicMaterial) -> Result<Self> {
+        // TODO: implement translucent materials
+        let alpha_discard_shader = handle.load_shader_from_memory(&thread, None, Some(ALPHA_DISCARD));
+        
         let mut material = unsafe { Material::from_raw(ffi::LoadMaterialDefault()) };
+        material.shader = alpha_discard_shader.to_raw();
+        
         let mut texture = None;
         
         if let Some(diffuse_texture) = &basic_mat.diffuse_texture {

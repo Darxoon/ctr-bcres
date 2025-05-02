@@ -2,3 +2,4 @@
 .vscode
 gui/target
 testing
+*.txt

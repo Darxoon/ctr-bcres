@@ -20,9 +20,8 @@ use nw_tex::{
 use raylib::math::{Matrix, Vector2, Vector3};
 
 use crate::{
-    material::{BasicImage, BasicMaterial},
-    mesh::BasicMesh,
-    BasicModel,
+    material::{BasicImage, BasicMaterial, MaterialTransparency},
+    mesh::BasicMesh, scene::BasicModel,
 };
 
 fn vec2_to_rl(vector: Vec2) -> Vector2 {
@@ -84,7 +83,8 @@ pub fn load_bcres_model(
     
     for node in gfx_materials {
         if let Some(material) = &node.value {
-            assert!(material.render_layer == 0);
+            // TODO: properly implement this again
+            // assert!(material.render_layer == 0);
             
             let mut texture_mapper: Option<&TextureMapper> = None;
             
@@ -110,7 +110,8 @@ pub fn load_bcres_model(
             
             out_materials.push(BasicMaterial {
                 diffuse_texture: image,
-                is_transparent: true, // TODO: figure this out better
+                transparency: MaterialTransparency::Transparent, // TODO: figure this out better
+                culling: material.rasterization.face_culling,
             });
         }
     }
@@ -134,10 +135,13 @@ pub fn load_bcres_model(
             }
             
             let mut bone = node.value.as_ref().unwrap();
-            let mut matrix = Matrix::translate(
+            let mut matrix = Matrix::rotate_xyz(
+                vec3_to_rl(bone.rotation).scale_by(-1.0)
+            ) * Matrix::translate(
                 bone.translation.x * global_scale,
                 bone.translation.y * global_scale,
-                bone.translation.z * global_scale);
+                bone.translation.z * global_scale
+            );
             
             while let Some(parent) = all_bones.get(&bone.parent_ptr.unwrap_or(Pointer::default())) {
                 matrix *= Matrix::translate(

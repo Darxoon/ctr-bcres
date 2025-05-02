@@ -215,7 +215,8 @@ impl<T: BinRead + BinWrite + Clone> From<&Option<T>> for CgfxBox<T> {
 #[derive(Debug, Clone, PartialEq, BinRead, BinWrite)]
 // vvv required because brw_write_4_byte_string might panic otherwise
 #[brw(assert(magic.bytes().len() == 4, "Length of magic number {:?} must be 4 bytes", magic))]
-#[br(assert(metadata_pointer == None, "CgfxTexture {:?} has metadata {:?}", name, metadata_pointer))]
+// TODO: properly implement this
+// #[br(assert(metadata_pointer == None, "CgfxTexture {:?} has metadata {:?}", name, metadata_pointer))]
 #[brw(little)]
 pub struct CgfxObjectHeader {
     #[br(parse_with = brw_read_4_byte_string)]

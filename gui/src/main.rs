@@ -1,65 +1,24 @@
-use std::{fs, io::ErrorKind};
-
-use anyhow::Result;
-use gfx_model::{load_bcres_model, load_bcres_textures};
-use material::{BasicMaterial, RlMaterial};
-use mesh::{BasicMesh, RlMesh};
-use nw_tex::bcres::CgfxContainer;
+use anyhow::{Ok, Result};
+use mesh::RlMesh;
+use nw_tex::bcres::model::material::FaceCulling;
 use raylib::{
     camera::Camera3D,
     color::Color,
-    ffi::{self, CameraMode, KeyboardKey, DEG2RAD},
+    ffi::{self, rlCullMode, rlDisableBackfaceCulling, rlEnableBackfaceCulling, rlSetCullFace, CameraMode, KeyboardKey, DEG2RAD, RL_CULL_DISTANCE_FAR},
     math::Vector3,
-    models::RaylibMaterial,
     prelude::{RaylibDraw, RaylibDraw3D, RaylibMode3DExt},
     RaylibHandle,
 };
+use scene::{prompt_new_scene, try_load_recent_scene, RlScene};
 
 mod gfx_model;
 mod material;
 mod mesh;
+mod scene;
 
 const MOVEMENT_SPEED: f32 = 8.0;
 const MOUSE_SPEED: f32 = 0.1;
 const GLOBAL_WORLD_SCALE: f32 = 0.01;
-
-#[derive(Clone, Debug, PartialEq, Default)]
-pub struct BasicModel {
-    pub meshes: Vec<BasicMesh>,
-    pub materials: Vec<BasicMaterial>,
-}
-
-fn load_default_scene() -> Result<BasicModel> {
-    let buf = match fs::read("testing/hei_5_00.bcres") {
-        Ok(buf) => buf,
-        Err(error) => match error.kind() {
-            ErrorKind::NotFound => fs::read("../testing/hei_5_00.bcres")?,
-            _ => return Err(error.into()),
-        },
-    };
-    
-    let container = CgfxContainer::new(&buf)?;
-    
-    if container.models.is_none() {
-        return Ok(BasicModel::default())
-    }
-    
-    let textures = load_bcres_textures(&container)?;
-    
-    let mut materials: Vec<BasicMaterial> = Vec::new();
-    let mut meshes: Vec<BasicMesh> = Vec::new();
-    
-    for node in container.models.unwrap().nodes {
-        if let Some(model) = node.value {
-            let model = load_bcres_model(&model, &textures, GLOBAL_WORLD_SCALE,
-                materials.len() as u32)?;
-            
-            materials.extend_from_slice(&model.materials);
-            meshes.extend_from_slice(&model.meshes);
-        }
-    }
-    Ok(BasicModel { meshes, materials })
-}
 
 fn update_cam(handle: &mut RaylibHandle, cam: &mut Camera3D) {
     handle.update_camera(cam, CameraMode::CAMERA_CUSTOM);
@@ -104,33 +63,26 @@ fn main() -> Result<()> {
         60.0,
     );
     
-    let model = load_default_scene()?;
-    
-    let mut materials: Vec<RlMaterial> = Vec::with_capacity(model.materials.len());
-    for mat in &model.materials {
-        let mut mat = RlMaterial::new(&mut handle, &thread, mat)?;
-        assert!(mat.material.is_material_valid());
-        materials.push(mat);
-    }
-    
-    let mut meshes: Vec<RlMesh> = model
-        .meshes
-        .iter()
-        .map(RlMesh::new)
-        .collect::<Result<Vec<RlMesh>>>()?;
-    
-    for mesh in &mut meshes {
-        let ffimesh: &mut ffi::Mesh = mesh.as_mut();
-        
-        unsafe {
-            ffi::UploadMesh(ffimesh as *mut ffi::Mesh, false);
-        }
-    }
+    let mut model = try_load_recent_scene()?;
+    let mut scene = model.as_ref().map(|model| RlScene::new(&mut handle, &thread, &model)).transpose()?;
     
     handle.disable_cursor();
     
     while !handle.window_should_close() {
         update_cam(&mut handle, &mut cam);
+        
+        if model.is_none() || handle.is_key_pressed(KeyboardKey::KEY_TAB) {
+            handle.enable_cursor();
+            
+            if let Some(new_model) = prompt_new_scene()? {
+                scene = Some(RlScene::new(&mut handle, &thread, &new_model)?);
+                model = Some(new_model);
+            } else if model.is_none() {
+                return Ok(());
+            }
+            
+            handle.disable_cursor();
+        }
         
         // setup rendering
         let mut draw = handle.begin_drawing(&thread);
@@ -138,18 +90,37 @@ fn main() -> Result<()> {
         
         let mut mode3d = draw.begin_mode3D(cam);
         
-        // sort meshes
-        let mut sortable_meshes: Vec<(&RlMesh, f32)> = Vec::with_capacity(meshes.len());
-        for mesh in &meshes {
-            sortable_meshes.push((mesh, -cam.position.distance_to(mesh.center_position.transform_with(mesh.bone_matrix))));
-        }
-        
-        sortable_meshes.sort_by(|a, b| a.1.total_cmp(&b.1));
-        
-        // render meshes
-        for (mesh, _) in sortable_meshes {
-            let material = &materials[mesh.material_id as usize];
-            mode3d.draw_mesh(mesh, material.into(), mesh.bone_matrix);
+        if let Some(scene) = &scene {
+            // sort meshes
+            let mut sortable_meshes: Vec<(&RlMesh, f32)> = Vec::with_capacity(scene.meshes.len());
+            for mesh in &scene.meshes {
+                sortable_meshes.push((mesh, -cam.position.distance_to(mesh.center_position.transform_with(mesh.bone_matrix))));
+            }
+            
+            sortable_meshes.sort_by(|a, b| a.1.total_cmp(&b.1));
+            
+            // render meshes
+            for (mesh, _) in sortable_meshes {
+                // unsafe { rlSetCullFace(rlCullMode::RL_CULL_FACE_BACK); }
+                let material = &scene.materials[mesh.material_id as usize];
+                
+                match material.culling {
+                    FaceCulling::FrontFace => {
+                        unsafe { rlEnableBackfaceCulling(); }
+                        unsafe { rlSetCullFace(rlCullMode::RL_CULL_FACE_FRONT as i32); }
+                    },
+                    FaceCulling::BackFace => {
+                        unsafe { rlEnableBackfaceCulling(); }
+                        unsafe { rlSetCullFace(rlCullMode::RL_CULL_FACE_BACK as i32); }
+                    },
+                    FaceCulling::Always => todo!(),
+                    FaceCulling::Never => {
+                        unsafe { rlDisableBackfaceCulling(); }
+                    },
+                }
+                
+                mode3d.draw_mesh(mesh, material.into(), mesh.bone_matrix);
+            }
         }
     }
     

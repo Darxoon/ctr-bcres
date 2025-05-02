@@ -1,7 +1,7 @@
 use std::{os::raw::c_void, pin::Pin, ptr, slice::from_raw_parts};
 
 use anyhow::Result;
-use nw_tex::bcres::image_codec::RgbaColor;
+use nw_tex::bcres::{image_codec::RgbaColor, model::material::FaceCulling};
 use raylib::{
     ffi::{self, MaterialMapIndex, PixelFormat}, models::{Material, RaylibMaterial, WeakMaterial}, texture::{Image, RaylibTexture2D, Texture2D}, RaylibHandle, RaylibThread
 };
@@ -22,11 +22,11 @@ pub struct RlImage {
 }
 
 impl RlImage {
-    pub fn new(basic_image: &BasicImage, transparent: bool) -> Self {
+    pub fn new(basic_image: &BasicImage, transparency: MaterialTransparency) -> Self {
         let mut image_buffer: Pin<Box<[u8]>>;
         let format: PixelFormat;
         
-        if transparent {
+        if transparency != MaterialTransparency::Opaque {
             let slice = unsafe {
                 from_raw_parts(basic_image.data.as_ptr() as *const u8, basic_image.data.len() * 4)
             };
@@ -78,23 +78,24 @@ impl AsRef<Image> for RlImage {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum MaterialTransparency {
+    Opaque,
+    Transparent,
+    Translucent,
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct BasicMaterial {
     pub diffuse_texture: Option<BasicImage>,
-    pub is_transparent: bool,
-}
-
-impl BasicMaterial {
-    pub fn new(diffuse_texture: Option<BasicImage>, is_transparent: bool) -> Self {
-        Self {
-            diffuse_texture,
-            is_transparent,
-        }
-    }
+    pub transparency: MaterialTransparency,
+    pub culling: FaceCulling,
 }
 
 pub struct RlMaterial {
     pub material: Material,
+    pub culling: FaceCulling,
+    
     pub _texture: Option<Texture2D>,
 }
 
@@ -109,7 +110,7 @@ impl RlMaterial {
         let mut texture = None;
         
         if let Some(diffuse_texture) = &basic_mat.diffuse_texture {
-            let image = RlImage::new(diffuse_texture, basic_mat.is_transparent);
+            let image = RlImage::new(diffuse_texture, basic_mat.transparency);
             let new_texture = handle.load_texture_from_image(&thread, image.as_ref())?;
             assert!(new_texture.is_texture_valid());
             
@@ -120,6 +121,7 @@ impl RlMaterial {
         
         Ok(Self {
             material,
+            culling: basic_mat.culling,
             _texture: texture
         })
     }

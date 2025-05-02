@@ -9,3 +9,4 @@ binrw = "0.14.1"
 na = "0.32.2"
 nw-tex = { path = ".." }
 raylib = { git = "https://github.com/Darxoon/raylib-rs" }
+rfd = "0.15.3"

@@ -121,10 +121,19 @@ pub struct MaterialColors {
 #[brw(little)]
 pub struct Rasterization {
     pub is_polygon_offset_enabled: u32,
-    pub face_culling: u32,
+    pub face_culling: FaceCulling,
     pub polygon_offset_unit: f32,
     
     pub face_culling_command: [u32; 2],
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, BinRead, BinWrite)]
+#[brw(repr = u32, little)]
+pub enum FaceCulling {
+    FrontFace,
+    BackFace,
+    Always,
+    Never,
 }
 
 #[derive(Clone, Debug, PartialEq, BinRead, BinWrite)]

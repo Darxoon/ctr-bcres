@@ -136,7 +136,7 @@ pub fn load_bcres_model(
             
             let mut bone = node.value.as_ref().unwrap();
             let mut matrix = Matrix::rotate_xyz(
-                vec3_to_rl(bone.rotation).scale_by(-1.0)
+                vec3_to_rl(bone.rotation) * Vector3::new(1.0, -1.0, 1.0)
             ) * Matrix::translate(
                 bone.translation.x * global_scale,
                 bone.translation.y * global_scale,

@@ -9,11 +9,13 @@ use binrw::{BinRead, BinWrite};
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use serde::{Deserialize, Serialize};
 
-use crate::{scoped_reader_pos, util::pointer::Pointer};
-
-use super::{
-    bcres::{CgfxCollectionValue, WriteContext},
-    util::{brw_relative_pointer, CgfxObjectHeader},
+use crate::{
+    scoped_reader_pos,
+    util::{
+        pointer::Pointer,
+        util::{brw_relative_pointer, CgfxObjectHeader},
+    },
+    CgfxCollectionValue, WriteContext,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, BinRead, BinWrite, Serialize, Deserialize)]

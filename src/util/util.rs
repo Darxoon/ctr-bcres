@@ -13,9 +13,11 @@ use binrw::{
 use byteorder::{LittleEndian, ReadBytesExt};
 use na::Matrix3x4;
 
-use crate::{scoped_reader_pos, util::{math::Vec3, pointer::Pointer}};
-
-use super::bcres::{CgfxCollectionValue, CgfxDict};
+use crate::{
+    scoped_reader_pos,
+    util::{math::Vec3, pointer::Pointer},
+    CgfxCollectionValue, CgfxDict,
+};
 
 #[allow(path_statements)] // to disable warning on `endian;`
 #[parser(reader, endian)]
@@ -39,7 +41,7 @@ pub fn brw_write_4_byte_string(string: &String) -> BinResult<()> {
     Ok(())
 }
 
-fn read_string(read: &mut impl Read) -> Result<String> {
+pub fn read_string(read: &mut impl Read) -> Result<String> {
     let mut string_buffer = Vec::new();
     
     loop {

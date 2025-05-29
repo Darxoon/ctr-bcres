@@ -5,7 +5,15 @@ use binrw::{BinRead, BinWrite};
 use byteorder::{LittleEndian, ReadBytesExt};
 use na::Matrix3x4;
 
-use crate::{bcres::{util::{brw_read_string, brw_relative_pointer, brw_write_zero, CgfxObjectHeader}, CgfxDict, WriteContext}, scoped_reader_pos, util::{math::{SerializableMatrix, Vec3}, pointer::Pointer}};
+use crate::{
+    scoped_reader_pos,
+    util::{
+        math::{SerializableMatrix, Vec3},
+        pointer::Pointer,
+        util::{brw_read_string, brw_relative_pointer, brw_write_zero, CgfxObjectHeader},
+    },
+    CgfxDict, WriteContext,
+};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct CgfxSkeleton {

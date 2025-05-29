@@ -10,15 +10,13 @@ use byteorder::{LittleEndian, ReadBytesExt};
 use na::Matrix3;
 
 use crate::{
-    bcres::{
-        bcres::{CgfxCollectionValue, WriteContext},
-        util::{read_inline_list, read_pointer_list, read_pointer_list_ext, CgfxObjectHeader},
-    },
     scoped_reader_pos,
     util::{
         math::{SerializableMatrix, Vec3},
         pointer::Pointer,
+        util::{read_inline_list, read_pointer_list, read_pointer_list_ext, CgfxObjectHeader},
     },
+    CgfxCollectionValue, WriteContext,
 };
 
 #[derive(Clone, Debug, PartialEq, BinRead, BinWrite)]

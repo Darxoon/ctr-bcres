@@ -1,6 +1,4 @@
-use std::
-    io::{Cursor, Read, Seek, SeekFrom}
-;
+use std::io::{Cursor, Read, Seek, SeekFrom};
 
 use anyhow::{anyhow, Result};
 use binrw::BinRead;
@@ -11,13 +9,11 @@ use skeleton::CgfxSkeleton;
 
 use crate::{
     scoped_reader_pos,
-    util::pointer::Pointer,
-};
-
-use super::{
-    bcres::{CgfxCollectionValue, CgfxDict, WriteContext}, util::{
-        read_pointer_list, CgfxNodeHeader, CgfxObjectHeader, CgfxTransform,
-    }
+    util::{
+        pointer::Pointer,
+        util::{read_pointer_list, CgfxNodeHeader, CgfxObjectHeader, CgfxTransform},
+    },
+    CgfxCollectionValue, CgfxDict, WriteContext,
 };
 
 pub mod material;

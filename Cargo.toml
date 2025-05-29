@@ -1,15 +1,15 @@
 [package]
-name = "nw-tex"
-description = "A tool to extract and rebuild Paper Mario: Sticker Star's localized texture archives"
+name = "ctr-bcres"
+description = "A library for the Nintendo 3DS's bcres file format"
 authors = ["Darxoon"]
-repository = "https://github.com/Darxoon/nw-tex"
-homepage = "https://darxoon.neocities.org/p/nw-tex"
-license = "Unlicense"
+repository = "https://github.com/Darxoon/ctr-bcres"
+homepage = "https://github.com/Darxoon/ctr-bcres"
+license = "bsd-2-clause"
 readme = "readme.md"
-version = "1.2.0"
+version = "1.0.0"
 edition = "2021"
-categories = ["command-line-utilities", "parsing", "data-structures", "game-development"]
-keywords = ["paper mario", "reverse engineering"]
+categories = ["parser-implementations", "data-structures", "game-development"]
+keywords = ["nintendo", "modding", "3d"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -26,7 +26,3 @@ rayon = "1.8.0"
 serde = { version = "1.0.193", features = ["serde_derive"] }
 serde-binary = "0.5.0"
 serde_yaml = "0.9.27"
-
-[workspace]
-resolver = "2"
-members = [".", "gui"]

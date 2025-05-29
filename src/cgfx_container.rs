@@ -211,6 +211,7 @@ impl CgfxContainer {
         Ok(out)
     }
     
+    #[allow(unused_variables)] // temporary until I figure out how this works
     pub fn from_single_texture(name: String, orig_reference_bit: u32, texture: CgfxTexture) -> CgfxContainer {
         let header = CgfxHeader {
             byte_order_mark: 0xfeff,

@@ -2,12 +2,15 @@ use std::{cmp::max, io::Cursor, slice::from_raw_parts};
 
 use anyhow::{anyhow, Result};
 use binrw::{BinRead, BinWrite};
+#[cfg(feature = "bytemuck")]
+use bytemuck::{Pod, Zeroable};
 use byteorder::{LittleEndian, ReadBytesExt};
 use png::{BitDepth, ColorType, Encoder, ScaledFloat, SourceChromaticities};
 
 use super::texture::PicaTextureFormat;
 
 #[derive(Clone, Copy, Default, Debug, PartialEq, Eq, BinRead, BinWrite)]
+#[cfg_attr(feature = "bytemuck", derive(Pod, Zeroable))]
 #[brw(little)]
 #[repr(C)]
 pub struct RgbaColor {
@@ -18,7 +21,13 @@ pub struct RgbaColor {
 }
 
 impl RgbaColor {
-    pub fn grayscale(lightness: u8) -> Self {
+    pub const WHITE: RgbaColor = RgbaColor::new(0xFF, 0xFF, 0xFF, 0xFF);
+    
+    pub const fn new(r: u8, g: u8, b: u8, a: u8) -> Self {
+        RgbaColor { r, g, b, a }
+    }
+    
+    pub const fn grayscale(lightness: u8) -> Self {
         Self {
             r: lightness,
             g: lightness,
@@ -27,7 +36,7 @@ impl RgbaColor {
         }
     }
     
-    pub fn grayscale_alpha(lightness: u8, alpha: u8) -> Self {
+    pub const fn grayscale_alpha(lightness: u8, alpha: u8) -> Self {
         Self {
             r: lightness,
             g: lightness,
@@ -36,7 +45,7 @@ impl RgbaColor {
         }
     }
     
-    pub fn from_alpha(alpha: u8) -> Self {
+    pub const fn from_alpha(alpha: u8) -> Self {
         Self {
             r: 0xFF,
             g: 0xFF,

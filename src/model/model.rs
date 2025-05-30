@@ -3,9 +3,6 @@ use std::io::{Cursor, Read, Seek, SeekFrom};
 use anyhow::{anyhow, Result};
 use binrw::BinRead;
 use byteorder::{LittleEndian, ReadBytesExt};
-use material::CgfxMaterial;
-use mesh::{Mesh, Shape};
-use skeleton::CgfxSkeleton;
 
 use crate::{
     scoped_reader_pos,
@@ -16,9 +13,11 @@ use crate::{
     CgfxCollectionValue, CgfxDict, WriteContext,
 };
 
-pub mod material;
-pub mod mesh;
-pub mod skeleton;
+use super::{
+    material::CgfxMaterial,
+    mesh::{Mesh, Shape},
+    skeleton::CgfxSkeleton,
+};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct CgfxModelCommon {

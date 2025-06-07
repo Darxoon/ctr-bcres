@@ -58,10 +58,10 @@ impl CgfxContainer {
         let header = CgfxHeader::read(&mut cursor)?;
         let mut dict_references: [(u32, Option<Pointer>); 16] = [Default::default(); 16];
         
-        for i in 0..16 {
+        for dict_ref in &mut dict_references {
             let position = Pointer::try_from(&cursor)?;
             
-            dict_references[i] = (
+            *dict_ref = (
                 cursor.read_u32::<LittleEndian>()?,
                 Pointer::read(&mut cursor)?.map(|pointer| pointer + position + 4),
             );
@@ -173,14 +173,14 @@ impl CgfxContainer {
         }
         
         // write strings
-        writer.write(ctx.string_section.as_bytes())?;
+        writer.write_all(ctx.string_section.as_bytes())?;
         
         // apply padding
         let alignment: i32 = 128;
         let buffer_size: i32 = writer.position().try_into()?;
         let padding_size = ((-buffer_size - 8) % alignment + alignment) % alignment; // weird padding calculation
         
-        writer.write(&vec![0u8; padding_size.try_into()?])?;
+        writer.write_all(&vec![0u8; padding_size.try_into()?])?;
         
         // apply image section references
         let image_section_offset: Pointer = Pointer::try_from(&writer)? + 8;
@@ -197,10 +197,10 @@ impl CgfxContainer {
         // write image data section
         let image_section_length: u32 = ctx.image_section.len().try_into()?;
         
-        writer.write(b"IMAG")?;
+        writer.write_all(b"IMAG")?;
         writer.write_u32::<LittleEndian>(image_section_length + 8)?;
         
-        writer.write(&ctx.image_section)?;
+        writer.write_all(&ctx.image_section)?;
         
         assert_matching!(writer, original);
         assert!(writer.get_ref().len() == self.header.file_length as usize,

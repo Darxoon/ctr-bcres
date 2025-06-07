@@ -144,7 +144,7 @@ pub fn decode_swizzled_buffer(image_buffer: &[u8], input_format: PicaTextureForm
                             r: image_buffer[input_offset + 3],
                             g: image_buffer[input_offset + 2],
                             b: image_buffer[input_offset + 1],
-                            a: image_buffer[input_offset + 0],
+                            a: image_buffer[input_offset],
                         }
                     },
                     PicaTextureFormat::RGBA4 => {
@@ -167,7 +167,7 @@ pub fn decode_swizzled_buffer(image_buffer: &[u8], input_format: PicaTextureForm
                         
                         let r: u8 = (((raw >> 11) & 0x1f) << 3).try_into()?;
                         let g: u8 = (((raw >> 5) & 0x3f) << 2).try_into()?;
-                        let b: u8 = (((raw >> 0) & 0x1f) << 3).try_into()?;
+                        let b: u8 = ((raw & 0x1f) << 3).try_into()?;
                         
                         output[output_offset] = RgbaColor {
                             r: r | (r >> 5),
@@ -226,8 +226,8 @@ pub fn decode_swizzled_buffer(image_buffer: &[u8], input_format: PicaTextureForm
                         output[output_offset] = RgbaColor::grayscale_alpha(color, alpha)
                     },
                     PicaTextureFormat::LA4 => {
-                        let high: u8 = (image_buffer[input_offset] & 0xF0) as u8;
-                        let low: u8 = (image_buffer[input_offset] & 0x0F) as u8;
+                        let high: u8 = image_buffer[input_offset] & 0xF0;
+                        let low: u8 = image_buffer[input_offset] & 0x0F;
                         
                         output[output_offset] = RgbaColor {
                             r: high | (high >> 4),
@@ -338,8 +338,8 @@ fn decode_etc1(image_buffer: &[u8], width: u32, height: u32, use_alpha: bool) ->
                         } else {
                             local_y * 4 + local_x + 2
                         };
-                        let x1: u32 = if flip { local_x } else { local_x + 2 }.try_into()?;
-                        let y1: u32 = if flip { local_y + 2 } else { local_y }.try_into()?;
+                        let x1: u32 = if flip { local_x } else { local_x + 2 };
+                        let y1: u32 = if flip { local_y + 2 } else { local_y };
                         
                         current_chunk[offset0 as usize] =
                             decode_etc1_pixel(base0, local_x, local_y, color_block_low.to_be(), table0)?;

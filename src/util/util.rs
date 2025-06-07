@@ -27,7 +27,7 @@ pub fn brw_read_4_byte_string() -> BinResult<String> {
     endian;
     
     let mut bytes: [u8; 4] = [0; 4];
-    reader.read(&mut bytes)?;
+    reader.read_exact(&mut bytes)?;
     
     Ok(from_utf8(&bytes).unwrap().to_string()) // ughhh error handling is so painful with binrw
 }
@@ -115,16 +115,14 @@ pub fn read_pointer_list_ext<T: CgfxCollectionValue, R: Read + Seek>(reader: &mu
             .map(|_| Pointer::read_relative(reader))
             .collect::<Result<Vec<Option<Pointer>>>>()?;
         
-        for object_pointer in object_pointers {
-            if let Some(object_pointer) = object_pointer {
-                reader.seek(SeekFrom::Start(object_pointer.into()))?;
-                
-                if let Some(magic) = magic {
-                    assert!(reader.read_u32::<LittleEndian>()? == magic);
-                }
-                
-                values.push(T::read_dict_value(reader)?);
+        for object_pointer in object_pointers.into_iter().flatten() {
+            reader.seek(SeekFrom::Start(object_pointer.into()))?;
+            
+            if let Some(magic) = magic {
+                assert!(reader.read_u32::<LittleEndian>()? == magic);
             }
+            
+            values.push(T::read_dict_value(reader)?);
         }
         
         values
@@ -209,14 +207,14 @@ impl<T: BinRead + BinWrite + Clone> From<Option<T>> for CgfxBox<T> {
 impl<T: BinRead + BinWrite + Clone> From<&Option<T>> for CgfxBox<T> {
     fn from(value: &Option<T>) -> Self {
         Self {
-            value: value.as_ref().map(|x| x.clone()),
+            value: value.clone(),
         }
     }
 }
 
 #[derive(Debug, Clone, PartialEq, BinRead, BinWrite)]
 // vvv required because brw_write_4_byte_string might panic otherwise
-#[brw(assert(magic.bytes().len() == 4, "Length of magic number {:?} must be 4 bytes", magic))]
+#[brw(assert(magic.len() == 4, "Length of magic number {:?} must be 4 bytes", magic))]
 // TODO: properly implement this
 // #[br(assert(metadata_pointer == None, "CgfxTexture {:?} has metadata {:?}", name, metadata_pointer))]
 #[brw(little)]
@@ -321,9 +319,9 @@ impl BinWrite for CgfxTransform {
             slice::from_raw_parts(world_numbers.as_ptr() as *const u8, world_numbers.len() * 4)
         };
         
-        writer.write(vec_bytes)?;
-        writer.write(local_bytes)?;
-        writer.write(world_bytes)?;
+        writer.write_all(vec_bytes)?;
+        writer.write_all(local_bytes)?;
+        writer.write_all(world_bytes)?;
         
         Ok(())
     }

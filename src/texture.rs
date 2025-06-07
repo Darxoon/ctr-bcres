@@ -114,7 +114,7 @@ pub struct CgfxTextureCommon {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum CgfxTexture {
-    Cube(CgfxTextureCommon, [ImageData; 6]),
+    Cube(CgfxTextureCommon, Box<[ImageData; 6]>),
     Image(CgfxTextureCommon, Option<ImageData>),
 }
 
@@ -148,7 +148,7 @@ impl CgfxTexture {
         
         let result = match texture_type_discriminant {
             0x20000009 => CgfxTexture::Cube(common,
-                try_array_init(|_| image_data(reader).transpose().unwrap())?),
+                Box::new(try_array_init(|_| image_data(reader).transpose().unwrap())?)),
             0x20000011 => CgfxTexture::Image(common, image_data(reader)?),
             
             _ => return Err(Error::msg(format!("Invalid Texture discriminant {:x}", texture_type_discriminant)))
@@ -174,7 +174,7 @@ impl CgfxTexture {
         
         let common_offset = Pointer::try_from(&writer)?;
         let name_offset = common_offset + 8;
-        assert!(common.cgfx_object_header.metadata_pointer == None);
+        assert!(common.cgfx_object_header.metadata_pointer.is_none());
         
         if let Some(name) = &common.cgfx_object_header.name {
             ctx.add_string(name)?;

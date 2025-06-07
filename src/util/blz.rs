@@ -136,8 +136,7 @@ pub fn blz_decode(input_buffer: &[u8]) -> Result<Vec<u8>> {
 /// Mutates input_buffer for efficiency but in the end leaves it
 /// in the same state that it was in before calling this function.
 pub fn blz_encode(input_buffer: &mut [u8]) -> Result<Vec<u8>> {
-    // weird calculation that I don't really understand
-    let mut result_buffer: Vec<u8> = Vec::with_capacity(input_buffer.len() + (input_buffer.len() + 7) / 8 + 11);
+    let mut result_buffer: Vec<u8> = Vec::with_capacity(input_buffer.len() + input_buffer.len().div_ceil(8) + 11);
     
     input_buffer.reverse();
     let mut input = Cursor::new(&*input_buffer);
@@ -172,7 +171,7 @@ pub fn blz_encode(input_buffer: &mut [u8]) -> Result<Vec<u8>> {
         
         if length_best > BLZ_THRESHOLD_U32 {
             // encode 
-            input.seek(SeekFrom::Current(length_best.try_into().unwrap()))?;
+            input.seek(SeekFrom::Current(length_best.into()))?;
             result_buffer[flag_index] |= 1;
             
             result_buffer.push(u8::try_from(

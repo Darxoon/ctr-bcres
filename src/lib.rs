@@ -18,7 +18,7 @@ pub mod util;
 
 pub fn get_4_byte_string(reader: &mut impl Read) -> Result<String> {
     let mut bytes: [u8; 4] = [0; 4];
-    reader.read(&mut bytes)?;
+    reader.read_exact(&mut bytes)?;
 
     Ok(from_utf8(&bytes)?.to_string())
 }
@@ -56,7 +56,7 @@ impl<'a, R: Read + Seek> ReaderGuard<'a, R> {
     }
 }
 
-impl<'a, R: Read + Seek> Drop for ReaderGuard<'a, R> {
+impl<R: Read + Seek> Drop for ReaderGuard<'_, R> {
     fn drop(&mut self) {
         self.reader.seek(SeekFrom::Start(self.start_pos)).unwrap();
     }
@@ -65,11 +65,12 @@ impl<'a, R: Read + Seek> Drop for ReaderGuard<'a, R> {
 #[macro_export]
 macro_rules! scoped_reader_pos {
     ($reader:ident) => {
-        let guard = crate::ReaderGuard::new($reader);
+        let guard = $crate::ReaderGuard::new($reader);
         let $reader = &mut *guard.reader;
     };
 }
 
+#[derive(Default)]
 pub struct WriteContext {
     string_section: String,
     string_references: HashMap<Pointer, String>,
@@ -82,16 +83,11 @@ pub struct WriteContext {
 
 impl WriteContext {
     pub fn new() -> Self {
-        WriteContext {
-            string_section: String::new(),
-            string_references: HashMap::new(),
-            image_section: Vec::new(),
-            image_references: HashMap::new(),
-        }
+        Self::default()
     }
     
     pub fn add_string(&mut self, string: &str) -> Result<()> {
-        if self.string_section.find(string).is_some() {
+        if self.string_section.contains(string) {
             // string exists already, exiting early
             return Ok(());
         }
@@ -114,7 +110,7 @@ impl WriteContext {
     }
     
     pub fn add_image_reference_to_current_end(&mut self, origin: Pointer) -> Result<()> {
-        self.image_references.insert(origin, self.image_section.len().try_into()?);
+        self.image_references.insert(origin, self.image_section.len().into());
         Ok(())
     }
 }
@@ -204,7 +200,7 @@ impl<T: CgfxCollectionValue> CgfxNode<T> {
         writer.write_u32::<LittleEndian>(0)?;
         
         if let Some(name) = &self.name {
-            ctx.add_string(&name)?;
+            ctx.add_string(name)?;
             ctx.add_string_reference(name_pointer_location, name.clone());
         }
         

@@ -141,8 +141,7 @@ impl SubMesh {
         let bone_indices = if let Some(bone_index_ptr) = bone_index_ptr {
             scoped_reader_pos!(reader);
             
-            let mut bone_indices = Vec::new();
-            bone_indices.resize(bone_index_count as usize, 0);
+            let mut bone_indices = vec![0; bone_index_count as usize];
             
             reader.seek(SeekFrom::Start(bone_index_ptr.into()))?;
             reader.read_u32_into::<LittleEndian>(&mut bone_indices)?;

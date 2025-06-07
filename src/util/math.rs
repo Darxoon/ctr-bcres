@@ -71,7 +71,7 @@ impl<const R: usize, const C: usize> Into<Matrix<f32, Const<R>, Const<C>, ArrayS
 impl<const R: usize, const C: usize> From<&Matrix<f32, Const<R>, Const<C>, ArrayStorage<f32, R, C>>> for SerializableMatrix<R, C> {
     fn from(value: &Matrix<f32, Const<R>, Const<C>, ArrayStorage<f32, R, C>>) -> Self {
         SerializableMatrix {
-            data: value.data.clone(),
+            data: value.data,
         }
     }
 }

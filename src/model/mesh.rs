@@ -220,7 +220,7 @@ pub struct FaceDescriptor {
     pub primitive_mode: u8, // TODO: make this an enum
     pub visible: u8,
     
-    pub indices: Vec<u16>, // TODO: implement speial case for format == Short or UShort
+    pub indices: Vec<u16>, // TODO: implement special case for format == Short or UShort
     
     // more fields
     

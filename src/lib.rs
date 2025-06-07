@@ -120,8 +120,8 @@ impl WriteContext {
 }
 
 pub trait CgfxCollectionValue: Sized {
-    // TODO: migrate this to use impl Read + Seek instead of Cursor
     fn read_dict_value<R: Read + Seek>(reader: &mut R) -> Result<Self>;
+    // TODO: migrate this to use impl Read + Seek instead of Cursor
     fn write_dict_value(&self, writer: &mut Cursor<&mut Vec<u8>>, ctx: &mut WriteContext) -> Result<()>;
 }
 

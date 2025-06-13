@@ -1,10 +1,14 @@
 use std::io::{Read, Seek, Write};
 
 use binrw::{BinRead, BinResult, BinWrite, Endian};
+#[cfg(feature = "bytemuck")]
+use bytemuck::{Pod, Zeroable};
 use na::{ArrayStorage, Const, Matrix};
 
 #[derive(Clone, Copy, Debug, PartialEq, Default, BinRead, BinWrite)]
+#[cfg_attr(feature = "bytemuck", derive(Pod, Zeroable))]
 #[brw(little)]
+#[repr(C)]
 pub struct Vec2 {
     pub x: f32,
     pub y: f32,
@@ -21,7 +25,9 @@ impl Vec2 {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Default, BinRead, BinWrite)]
+#[cfg_attr(feature = "bytemuck", derive(Pod, Zeroable))]
 #[brw(little)]
+#[repr(C)]
 pub struct Vec3 {
     pub x: f32,
     pub y: f32,
@@ -39,7 +45,9 @@ impl Vec3 {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, BinRead, BinWrite)]
+#[cfg_attr(feature = "bytemuck", derive(Pod, Zeroable))]
 #[brw(little)]
+#[repr(C)]
 pub struct Vec4 {
     pub x: f32,
     pub y: f32,

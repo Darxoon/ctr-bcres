@@ -1,6 +1,5 @@
 use std::{
-    io::{Cursor, Write},
-    str::from_utf8,
+    fs, io::{Cursor, Write}, path::Path, str::from_utf8
 };
 
 use anyhow::Result;
@@ -8,7 +7,7 @@ use binrw::{BinRead, BinWrite};
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
 use crate::{
-    assert_matching, util::pointer::Pointer, write_at_pointer, CgfxDict, CgfxNode, WriteContext,
+    assert_matching, util::{blz::blz_decode, pointer::Pointer}, write_at_pointer, CgfxDict, CgfxNode, WriteContext,
 };
 
 use super::{model::CgfxModel, texture::CgfxTexture};
@@ -52,6 +51,16 @@ pub struct CgfxContainer {
 }
 
 impl CgfxContainer {
+    pub fn load_bcrez(path: &Path) -> Result<Self> {
+        let input_file = fs::read(path)?;
+        let decoded = match blz_decode(&input_file) {
+            Ok(value) => value,
+            Err(_) => input_file,
+        };
+        
+        Ok(CgfxContainer::new(&decoded)?)
+    }
+    
     pub fn new(buffer: &[u8]) -> Result<Self> {
         let mut cursor = Cursor::new(buffer);
         

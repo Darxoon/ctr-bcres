@@ -2,7 +2,7 @@
 // based on CUE's DS/GBA Compressors
 use std::io::{self, Cursor, Seek, SeekFrom};
 
-use anyhow::{bail, ensure, Error, Result};
+use anyhow::{ensure, Error, Result};
 use byteorder::{ByteOrder, LittleEndian, ReadBytesExt, WriteBytesExt};
 use rayon::iter::{repeat, ParallelIterator};
 

@@ -2,7 +2,7 @@
 // based on CUE's DS/GBA Compressors
 use std::io::{self, Cursor, Seek, SeekFrom};
 
-use anyhow::{Error, Result};
+use anyhow::{bail, ensure, Error, Result};
 use byteorder::{ByteOrder, LittleEndian, ReadBytesExt, WriteBytesExt};
 use rayon::iter::{repeat, ParallelIterator};
 
@@ -50,17 +50,18 @@ pub fn blz_decode(input_buffer: &[u8]) -> Result<Vec<u8>> {
     
     let result_size_increase = input_buffer_u32[input_buffer_u32.len() - 1];
     
-    if result_size_increase == 0 {
-        panic!("Not coded file!");
-    }
+    ensure!(result_size_increase != 0, "Not coded file!");
     
-    let header_length: u32 = input_buffer[input_buffer.len() - 5].into();
-    assert!(header_length >= 0x08 || header_length <= 0x0B, "Invalid header length");
-    assert!(input_buffer_length > header_length, "Invalid header length");
+    let header_length: u32 = input_buffer[input_buffer.len() - 5] as u32;
+    ensure!(header_length >= 0x08 || header_length <= 0x0B, "Invalid header length");
+    ensure!(input_buffer_length > header_length, "Invalid header length");
     
     let mut encoded_length = input_buffer_u32[input_buffer_u32.len() - 2] & 0x00FFFFFF;
+    
+    ensure!(encoded_length <= input_buffer_length, "Encoded length greater than input file");
     let unencoded_length = input_buffer_length - encoded_length;
     
+    ensure!(header_length < encoded_length, "Header length greater than encoded length");
     encoded_length -= header_length;
     
     let encoded_length_usize: usize = encoded_length.try_into().unwrap();
@@ -69,7 +70,7 @@ pub fn blz_decode(input_buffer: &[u8]) -> Result<Vec<u8>> {
     let result_size: usize = (input_buffer_length + result_size_increase)
         .try_into()
         .unwrap();
-    assert!(result_size <= RAW_MAXIM, "Resulting file too large");
+    ensure!(result_size <= RAW_MAXIM, "Resulting file too large");
     
     // start populating result with unencoded area
     let mut result_buffer: Vec<u8> = Vec::with_capacity(result_size);
@@ -126,7 +127,7 @@ pub fn blz_decode(input_buffer: &[u8]) -> Result<Vec<u8>> {
         }
     }
     
-    assert!(result_buffer.len() == result_size, "Decompressed byte length doesn't match expected length");
+    ensure!(result_buffer.len() == result_size, "Decompressed byte length doesn't match expected length");
     
     result_buffer[unencoded_length_usize..].reverse();
     

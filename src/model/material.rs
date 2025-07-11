@@ -153,7 +153,7 @@ pub struct TextureCoord {
     pub source_coord_index: u32,
     pub mapping_type: u32,
     pub reference_camera_index: u32,
-    pub transform_type: u32,
+    pub transform_type: TextureTransformType,
     
     pub scale: Vec2,
     pub rotation: f32,
@@ -162,6 +162,14 @@ pub struct TextureCoord {
     pub flags: u32,
     #[brw(repr = SerializableMatrix<3, 4>)]
     pub transform: Matrix3x4<f32>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, BinRead, BinWrite)]
+#[brw(repr = u32)]
+pub enum TextureTransformType {
+    DccMaya,
+    DccSoftImage,
+    Dcc3dsMax,
 }
 
 #[derive(Clone, Debug, PartialEq, BinRead, BinWrite)]

@@ -1,14 +1,14 @@
 use std::io::{Cursor, Read, Seek, SeekFrom};
 
 use anyhow::{anyhow, Result};
-use binrw::BinRead;
+use binrw::{BinRead, BinWrite};
 use byteorder::{LittleEndian, ReadBytesExt};
 
 use crate::{
     scoped_reader_pos,
     util::{
         pointer::Pointer,
-        util::{read_pointer_list, CgfxNodeHeader, CgfxObjectHeader, CgfxTransform},
+        util::{brw_read_string, brw_write_zero, read_pointer_list, CgfxNodeHeader, CgfxObjectHeader, CgfxTransform},
     },
     CgfxCollectionValue, CgfxDict, WriteContext,
 };
@@ -30,7 +30,7 @@ pub struct CgfxModelCommon {
     pub meshes: Vec<Mesh>,
     pub materials: Option<CgfxDict<CgfxMaterial>>,
     pub shapes: Vec<Shape>,
-    pub mesh_node_visibilities: Option<CgfxDict<()>>, // TODO: implement
+    pub mesh_node_visibilities: Option<CgfxDict<MeshNodeVisibility>>, // TODO: implement
     
     pub flags: u32,
     pub face_culling: u32,
@@ -80,7 +80,7 @@ impl CgfxModel {
         let mesh_node_visibilities = if let Some(mesh_node_visibility_ptr) = mesh_node_visibility_ptr {
             scoped_reader_pos!(reader);
             reader.seek(SeekFrom::Start(mesh_node_visibility_ptr.into()))?;
-            let dict: CgfxDict<()> = CgfxDict::from_reader(reader)?;
+            let dict: CgfxDict<MeshNodeVisibility> = CgfxDict::from_reader(reader)?;
             
             assert!(dict.values_count == mesh_node_visibility_count);
             Some(dict)
@@ -147,4 +147,16 @@ impl CgfxCollectionValue for CgfxModel {
     fn write_dict_value(&self, _writer: &mut Cursor<&mut Vec<u8>>, _ctx: &mut WriteContext) -> Result<()> {
         todo!()
     }
+}
+
+#[derive(Clone, Debug, PartialEq, BinRead, BinWrite)]
+#[brw(little)]
+pub struct MeshNodeVisibility {
+    #[br(parse_with = brw_read_string)]
+    #[bw(write_with = brw_write_zero)]
+    pub name: Option<String>,
+    
+    #[br(map = |value: u32| value != 0)]
+    #[bw(map = |&value: &bool| value as u32)]
+    pub visible: bool,
 }

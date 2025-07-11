@@ -31,7 +31,9 @@ pub struct Mesh {
     
     parent_ptr: i32,
     
-    pub visible: u8,
+    #[br(map = |value: u8| value != 0)]
+    #[bw(map = |&value: &bool| value as u8)]
+    pub visible: bool,
     pub render_priority: u8,
     
     pub mesh_node_index: u16,

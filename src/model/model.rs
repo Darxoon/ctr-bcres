@@ -149,6 +149,12 @@ impl CgfxCollectionValue for CgfxModel {
     }
 }
 
+impl<'a> Into<&'a CgfxModelCommon> for &'a CgfxModel {
+    fn into(self) -> &'a CgfxModelCommon {
+        self.common()
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, BinRead, BinWrite)]
 #[brw(little)]
 pub struct MeshNodeVisibility {

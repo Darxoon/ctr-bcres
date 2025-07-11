@@ -1,6 +1,6 @@
 use std::io::{Cursor, Read, Seek, SeekFrom};
 
-use anyhow::Result;
+use anyhow::{anyhow, bail, ensure, Result};
 use binrw::{BinRead, BinWrite};
 use byteorder::{LittleEndian, ReadBytesExt};
 use na::Matrix3x4;
@@ -19,8 +19,8 @@ use crate::{
 pub struct CgfxSkeleton {
     pub cgfx_object_header: CgfxObjectHeader,
     
-    pub bones: Option<CgfxDict<CgfxBone>>,
-    pub root_bone: Option<Pointer>,
+    pub bones: CgfxDict<CgfxBone>,
+    pub root_bone: Pointer,
     pub scaling_rule: SkeletonScalingRule,
     pub flags: u32,
 }
@@ -40,13 +40,15 @@ impl CgfxSkeleton {
             reader.seek(SeekFrom::Start(bone_ptr.into()))?;
             let dict: CgfxDict<CgfxBone> = CgfxDict::from_reader(reader)?;
             
-            assert!(dict.values_count == bone_count);
-            Some(dict)
+            ensure!(dict.values_count == bone_count);
+            dict
         } else {
-            None
+            bail!("Cgfx Skeleton is missing a bone dictionary");
         };
         
-        let root_bone = Pointer::read_relative(reader)?;
+        let root_bone = Pointer::read_relative(reader)?
+            .ok_or_else(|| anyhow!("Cgfx Skeleton is missing a root bone"))?;
+        
         let scaling_rule = SkeletonScalingRule::read(reader)?;
         let flags = reader.read_u32::<LittleEndian>()?;
         

@@ -1,4 +1,4 @@
-use std::io::{Cursor, Read, Seek, SeekFrom};
+use std::io::{Read, Seek, SeekFrom, Write};
 
 use anyhow::{bail, Result};
 use array_init::try_array_init;
@@ -80,7 +80,7 @@ impl CgfxCollectionValue for CgfxMaterial {
         })
     }
 
-    fn write_dict_value(&self, _writer: &mut Cursor<&mut Vec<u8>>, _ctx: &mut WriteContext) -> Result<()> {
+    fn write_dict_value<W: Write + Seek>(&self, _writer: &mut W, _ctx: &mut WriteContext) -> Result<()> {
         todo!()
     }
 }

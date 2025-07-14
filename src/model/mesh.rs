@@ -1,5 +1,5 @@
 use std::{
-    io::{Cursor, Read, Seek, SeekFrom},
+    io::{Read, Seek, SeekFrom, Write},
     ops::{Deref, DerefMut},
     slice::from_raw_parts,
 };
@@ -94,7 +94,7 @@ impl Shape {
         })
     }
     
-    pub fn to_writer(&self, _writer: &mut Cursor<&mut Vec<u8>>) -> Result<()> {
+    pub fn to_writer<W: Write + Seek>(&self, _writer: &mut W) -> Result<()> {
         todo!()
     }
 }
@@ -104,7 +104,7 @@ impl CgfxCollectionValue for Shape {
         Self::from_reader(reader)
     }
 
-    fn write_dict_value(&self, writer: &mut Cursor<&mut Vec<u8>>, _: &mut WriteContext) -> Result<()> {
+    fn write_dict_value<W: Write + Seek>(&self, writer: &mut W, _: &mut WriteContext) -> Result<()> {
         self.to_writer(writer)
     }
 }
@@ -162,7 +162,7 @@ impl SubMesh {
         })
     }
     
-    pub fn to_writer(&self, _writer: &mut Cursor<&mut Vec<u8>>) -> Result<()> {
+    pub fn to_writer<W: Write + Seek>(&self, _writer: &mut W) -> Result<()> {
         todo!()
     }
 }
@@ -172,7 +172,7 @@ impl CgfxCollectionValue for SubMesh {
         Self::from_reader(reader)
     }
 
-    fn write_dict_value(&self, writer: &mut Cursor<&mut Vec<u8>>, _: &mut WriteContext) -> Result<()> {
+    fn write_dict_value<W: Write + Seek>(&self, writer: &mut W, _: &mut WriteContext) -> Result<()> {
         self.to_writer(writer)
     }
 }
@@ -200,7 +200,7 @@ impl Face {
         })
     }
     
-    pub fn to_writer(&self, _: &mut Cursor<&mut Vec<u8>>) -> Result<()> {
+    pub fn to_writer<W: Write + Seek>(&self, _writer: &mut W) -> Result<()> {
         todo!()
     }
 }
@@ -210,7 +210,7 @@ impl CgfxCollectionValue for Face {
         Self::from_reader(reader)
     }
 
-    fn write_dict_value(&self, writer: &mut Cursor<&mut Vec<u8>>, _: &mut WriteContext) -> Result<()> {
+    fn write_dict_value<W: Write + Seek>(&self, writer: &mut W, _: &mut WriteContext) -> Result<()> {
         self.to_writer(writer)
     }
 }
@@ -273,7 +273,7 @@ impl FaceDescriptor {
         })
     }
     
-    pub fn to_writer(&self, _: &mut Cursor<&mut Vec<u8>>) -> Result<()> {
+    pub fn to_writer<W: Write + Seek>(&self, _writer: &mut W) -> Result<()> {
         todo!()
     }
 }
@@ -283,7 +283,7 @@ impl CgfxCollectionValue for FaceDescriptor {
         Self::from_reader(reader)
     }
 
-    fn write_dict_value(&self, writer: &mut Cursor<&mut Vec<u8>>, _: &mut WriteContext) -> Result<()> {
+    fn write_dict_value<W: Write + Seek>(&self, writer: &mut W, _: &mut WriteContext) -> Result<()> {
         self.to_writer(writer)
     }
 }
@@ -376,7 +376,7 @@ impl VertexBuffer {
         Ok(vertex_buffer)
     }
     
-    fn to_writer(&self, _writer: &mut Cursor<&mut Vec<u8>>) -> Result<()> {
+    fn to_writer<W: Write + Seek>(&self, _writer: &mut W) -> Result<()> {
         todo!()
     }
 }
@@ -386,7 +386,7 @@ impl CgfxCollectionValue for VertexBuffer {
         Self::from_reader(reader)
     }
 
-    fn write_dict_value(&self, writer: &mut Cursor<&mut Vec<u8>>, _: &mut WriteContext) -> Result<()> {
+    fn write_dict_value<W: Write + Seek>(&self, writer: &mut W, _: &mut WriteContext) -> Result<()> {
         self.to_writer(writer)
     }
 }
@@ -439,7 +439,7 @@ impl VertexBufferAttribute {
         })
     }
     
-    fn to_writer(&self, _writer: &mut Cursor<&mut Vec<u8>>) -> Result<()> {
+    fn to_writer<W: Write + Seek>(&self, _writer: &mut W) -> Result<()> {
         todo!()
     }
 }
@@ -449,7 +449,7 @@ impl CgfxCollectionValue for VertexBufferAttribute {
         Self::from_reader(reader)
     }
 
-    fn write_dict_value(&self, writer: &mut Cursor<&mut Vec<u8>>, _: &mut WriteContext) -> Result<()> {
+    fn write_dict_value<W: Write + Seek>(&self, writer: &mut W, _: &mut WriteContext) -> Result<()> {
         self.to_writer(writer)
     }
 }

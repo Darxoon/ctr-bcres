@@ -1,6 +1,6 @@
 use std::{
     fmt::Debug,
-    io::{Cursor, Read, Seek, SeekFrom},
+    io::{Read, Seek, SeekFrom, Write},
 };
 
 use anyhow::{Error, Result};
@@ -157,7 +157,7 @@ impl CgfxTexture {
         Ok(result)
     }
     
-    pub fn to_writer(&self, writer: &mut Cursor<&mut Vec<u8>>, ctx: &mut WriteContext) -> Result<()> {
+    pub fn to_writer<W: Write + Seek>(&self, writer: &mut W, ctx: &mut WriteContext) -> Result<()> {
         // write discriminant
         let discriminant: u32 = match self {
             CgfxTexture::Cube(_, _) => 0x20000009,
@@ -172,7 +172,7 @@ impl CgfxTexture {
             CgfxTexture::Image(common, _) => common,
         };
         
-        let common_offset = Pointer::try_from(&writer)?;
+        let common_offset = Pointer::current(writer)?;
         let name_offset = common_offset + 8;
         assert!(common.cgfx_object_header.metadata_pointer.is_none());
         
@@ -191,7 +191,7 @@ impl CgfxTexture {
                 
                 if let Some(image) = image {
                     // make sure image.buffer_pointer gets updated
-                    let current_offset = Pointer::try_from(&writer)?;
+                    let current_offset = Pointer::current(writer)?;
                     ctx.add_image_reference_to_current_end(current_offset + 12)?;
                     ctx.append_to_image_section(&image.image_bytes)?;
                 }
@@ -238,7 +238,7 @@ impl CgfxCollectionValue for CgfxTexture {
         Self::from_reader(reader)
     }
     
-    fn write_dict_value(&self, writer: &mut Cursor<&mut Vec<u8>>, ctx: &mut WriteContext) -> Result<()> {
+    fn write_dict_value<W: Write + Seek>(&self, writer: &mut W, ctx: &mut WriteContext) -> Result<()> {
         self.to_writer(writer, ctx)
     }
 }

@@ -117,8 +117,7 @@ impl WriteContext {
 
 pub trait CgfxCollectionValue: Sized {
     fn read_dict_value<R: Read + Seek>(reader: &mut R) -> Result<Self>;
-    // TODO: migrate this to use impl Read + Seek instead of Cursor
-    fn write_dict_value(&self, writer: &mut Cursor<&mut Vec<u8>>, ctx: &mut WriteContext) -> Result<()>;
+    fn write_dict_value<W: Write + Seek>(&self, writer: &mut W, ctx: &mut WriteContext) -> Result<()>;
 }
 
 // auto implement CgfxCollectionValue for all binrw types
@@ -131,7 +130,7 @@ where
         Ok(Self::read_le(reader)?)
     }
 
-    fn write_dict_value(&self, writer: &mut Cursor<&mut Vec<u8>>, _ctx: &mut WriteContext) -> Result<()> {
+    fn write_dict_value<W: Write + Seek>(&self, writer: &mut W, _ctx: &mut WriteContext) -> Result<()> {
         self.write_le(writer)?;
         Ok(())
     }
@@ -188,15 +187,15 @@ impl<T: CgfxCollectionValue> CgfxNode<T> {
         })
     }
     
-    pub fn to_writer(&self, writer: &mut Cursor<&mut Vec<u8>>, ctx: &mut WriteContext) -> Result<Pointer> {
+    pub fn to_writer<W: Write + Seek>(&self, writer: &mut W, ctx: &mut WriteContext) -> Result<Pointer> {
         writer.write_u32::<LittleEndian>(self.reference_bit)?;
         writer.write_u16::<LittleEndian>(self.left_node_index)?;
         writer.write_u16::<LittleEndian>(self.right_node_index)?;
         
         // name pointer and value pointer, write zero for now and patch it back later
-        let name_pointer_location = Pointer::try_from(&writer)?;
+        let name_pointer_location = Pointer::current(writer)?;
         writer.write_u32::<LittleEndian>(0)?;
-        let value_pointer_location = Pointer::try_from(&writer)?;
+        let value_pointer_location = Pointer::current(writer)?;
         writer.write_u32::<LittleEndian>(0)?;
         
         if let Some(name) = &self.name {
@@ -241,7 +240,7 @@ impl<T: CgfxCollectionValue> CgfxDict<T> {
         })
     }
     
-    pub fn to_writer(&self, writer: &mut Cursor<&mut Vec<u8>>, ctx: &mut WriteContext) -> Result<()> {
+    pub fn to_writer<W: Write + Seek>(&self, writer: &mut W, ctx: &mut WriteContext) -> Result<()> {
         assert!(self.values_count + 1 == self.nodes.len() as u32, "values_count does not match node count");
         
         write!(writer, "{}", self.magic_number)?;
@@ -254,7 +253,7 @@ impl<T: CgfxCollectionValue> CgfxDict<T> {
             // TODO: when are the values serialized? here or in a separate loop
             if let Some(value) = &node.value {
                 // update value pointer to point to current location
-                let current_offset = Pointer::try_from(&writer)?;
+                let current_offset = Pointer::current(writer)?;
                 let relative_value_offset = current_offset - value_pointer_location;
                 
                 write_at_pointer(writer, value_pointer_location, relative_value_offset.into())?;

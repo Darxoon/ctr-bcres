@@ -2,7 +2,7 @@ use std::{
     fs, io::{Cursor, Write}, path::Path, str::from_utf8
 };
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use binrw::{BinRead, BinWrite};
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
@@ -52,7 +52,8 @@ pub struct CgfxContainer {
 
 impl CgfxContainer {
     pub fn load_bcrez(path: &Path) -> Result<Self> {
-        let input_file = fs::read(path)?;
+        let input_file = fs::read(path)
+            .map_err(|err| anyhow!("Failed reading bcres file {}: {err}", path.display()))?;
         let decoded = match blz_decode(&input_file) {
             Ok(value) => value,
             Err(_) => input_file,

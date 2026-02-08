@@ -4,13 +4,12 @@ use anyhow::{bail, Result};
 use array_init::try_array_init;
 use binrw::{BinRead, BinWrite};
 use byteorder::{LittleEndian, ReadBytesExt};
-use na::Matrix3x4;
 
 use crate::{
     image_codec::RgbaColor,
     scoped_reader_pos,
     util::{
-        math::{SerializableMatrix, Vec2, Vec4},
+        math::{Mat3x4, Vec2, Vec4},
         pointer::Pointer,
         util::{brw_read_string, brw_relative_pointer, brw_write_zero, CgfxBox, CgfxObjectHeader},
     },
@@ -160,8 +159,7 @@ pub struct TextureCoord {
     pub translation: Vec2,
     
     pub flags: u32,
-    #[brw(repr = SerializableMatrix<3, 4>)]
-    pub transform: Matrix3x4<f32>,
+    pub transform: Mat3x4,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinRead, BinWrite)]
@@ -204,5 +202,9 @@ pub struct TextureSampler {
     #[br(parse_with = brw_relative_pointer)]
     #[bw(map = |_| 0u32)]
     pub parent_mapper: Option<Pointer>,
+    
+    /// Field is only used in an older Cgfx version
+    /// In Sticker Star, filtering is intead determined using PICA commands
+    /// (TextureMapper.commands field)
     pub min_filter: u32,
 }

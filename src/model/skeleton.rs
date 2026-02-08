@@ -3,12 +3,11 @@ use std::io::{Read, Seek, SeekFrom, Write};
 use anyhow::{anyhow, bail, ensure, Result};
 use binrw::{BinRead, BinWrite};
 use byteorder::{LittleEndian, ReadBytesExt};
-use na::Matrix3x4;
 
 use crate::{
     scoped_reader_pos,
     util::{
-        math::{SerializableMatrix, Vec3},
+        math::{Mat3x4, Vec3},
         pointer::Pointer,
         util::{brw_read_string, brw_relative_pointer, brw_write_zero, CgfxObjectHeader},
     },
@@ -103,12 +102,9 @@ pub struct CgfxBone {
     pub rotation: Vec3,
     pub translation: Vec3,
     
-    #[brw(repr = SerializableMatrix<3, 4>)]
-    pub local_transform: Matrix3x4<f32>,
-    #[brw(repr = SerializableMatrix<3, 4>)]
-    pub world_transform: Matrix3x4<f32>,
-    #[brw(repr = SerializableMatrix<3, 4>)]
-    pub inv_world_transform: Matrix3x4<f32>,
+    pub local_transform: Mat3x4,
+    pub world_transform: Mat3x4,
+    pub inv_world_transform: Mat3x4,
     
     pub billboard_mode: u32,
     

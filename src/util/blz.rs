@@ -1,10 +1,9 @@
 // darxoon's blz implementation v0
 // based on CUE's DS/GBA Compressors
-use std::io::{self, Cursor, Seek, SeekFrom};
+use std::{io::{self, Cursor, Seek, SeekFrom}, iter};
 
 use anyhow::{ensure, Error, Result};
 use byteorder::{ByteOrder, LittleEndian, ReadBytesExt, WriteBytesExt};
-use rayon::iter::{repeat, ParallelIterator};
 
 /// 3-bytes length, 16MB - 1
 const RAW_MAXIM: usize = 0x00FFFFFF;
@@ -45,7 +44,7 @@ pub fn blz_decode(input_buffer: &[u8]) -> Result<Vec<u8>> {
     // extracting basic information
     let input_buffer_length: u32 = input_buffer.len().try_into().unwrap();
     
-    let mut input_buffer_u32: Vec<u32> = repeat(0).take(input_buffer.len() / 4).collect();
+    let mut input_buffer_u32: Vec<u32> = iter::repeat(0).take(input_buffer.len() / 4).collect();
     LittleEndian::read_u32_into(input_buffer, &mut input_buffer_u32);
     
     let result_size_increase = input_buffer_u32[input_buffer_u32.len() - 1];

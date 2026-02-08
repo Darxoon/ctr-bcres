@@ -7,12 +7,11 @@ use std::{
 use anyhow::{anyhow, Result};
 use binrw::{BinRead, BinWrite};
 use byteorder::{LittleEndian, ReadBytesExt};
-use na::Matrix3;
 
 use crate::{
     scoped_reader_pos,
     util::{
-        math::{SerializableMatrix, Vec3},
+        math::{Mat3, Vec3},
         pointer::Pointer,
         util::{read_inline_list, read_pointer_list, read_pointer_list_ext, CgfxObjectHeader},
     },
@@ -115,8 +114,7 @@ pub struct BoundingBox {
     pub flags: u32,
     
     pub center: Vec3,
-    #[brw(repr = SerializableMatrix<3, 3>)]
-    pub orientation: Matrix3<f32>,
+    pub orientation: Mat3,
     pub size: Vec3,
 }
 

@@ -1,21 +1,19 @@
 use std::{
     fmt::Debug,
     io::{Read, Seek, SeekFrom, Write},
-    slice,
     str::from_utf8,
 };
 
 use anyhow::Result;
-use binrw::{
-    meta::{EndianKind, ReadEndian, WriteEndian},
-    parser, writer, BinRead, BinResult, BinWrite, Endian,
-};
+use binrw::{parser, writer, BinRead, BinResult, BinWrite, Endian};
 use byteorder::{LittleEndian, ReadBytesExt};
-use na::Matrix3x4;
 
 use crate::{
     scoped_reader_pos,
-    util::{math::Vec3, pointer::Pointer},
+    util::{
+        math::{Mat3x4, Vec3},
+        pointer::Pointer,
+    },
     CgfxCollectionValue, CgfxDict,
 };
 
@@ -250,83 +248,13 @@ pub struct CgfxNodeHeader {
     anim_group_pointer: Option<Pointer>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, BinRead, BinWrite)]
+#[brw(little)]
 pub struct CgfxTransform {
     pub scale: Vec3,
     pub rotation: Vec3,
     pub translation: Vec3,
     
-    pub local_transform: Matrix3x4<f32>,
-    pub world_transform: Matrix3x4<f32>,
-}
-
-impl BinRead for CgfxTransform {
-    type Args<'a> = ();
-
-    fn read_options<R: Read + Seek>(reader: &mut R, endian: Endian, args: Self::Args<'_>) -> BinResult<Self> {
-        let numbers_result: Result<Vec<f32>, binrw::Error> = (0..33)
-            .map(|_| f32::read_options(reader, endian, args))
-            .collect();
-        
-        let numbers = numbers_result?;
-        
-        Ok(Self {
-            scale: Vec3::new(numbers[0], numbers[1], numbers[2]),
-            rotation: Vec3::new(numbers[3], numbers[4], numbers[5]),
-            translation: Vec3::new(numbers[6], numbers[7], numbers[8]),
-            
-            local_transform: Matrix3x4::from_row_slice(&numbers[9..21]),
-            world_transform: Matrix3x4::from_row_slice(&numbers[21..33]),
-        })
-    }
-}
-
-impl ReadEndian for CgfxTransform {
-    const ENDIAN: EndianKind = EndianKind::Endian(Endian::Little);
-}
-
-impl BinWrite for CgfxTransform {
-    type Args<'a> = ();
-
-    fn write_options<W: Write + Seek>(&self, writer: &mut W, endian: Endian, _args: Self::Args<'_>) -> BinResult<()> {
-        // sorry 1 person trying to use this on a big endian machine (?)
-        assert!(endian == Endian::Little);
-        
-        let vec_numbers: [f32; 9] = [
-            self.scale.x,
-            self.scale.y,
-            self.scale.z,
-            self.rotation.x,
-            self.rotation.y,
-            self.rotation.z,
-            self.translation.x,
-            self.translation.y,
-            self.translation.z,
-        ];
-        
-        let local_numbers = self.local_transform.data.as_slice();
-        let world_numbers = self.world_transform.data.as_slice();
-        
-        let vec_bytes: &[u8] = unsafe {
-            slice::from_raw_parts(vec_numbers.as_ptr() as *const u8, vec_numbers.len() * 4)
-        };
-        
-        let local_bytes: &[u8] = unsafe {
-            slice::from_raw_parts(local_numbers.as_ptr() as *const u8, local_numbers.len() * 4)
-        };
-        
-        let world_bytes: &[u8] = unsafe {
-            slice::from_raw_parts(world_numbers.as_ptr() as *const u8, world_numbers.len() * 4)
-        };
-        
-        writer.write_all(vec_bytes)?;
-        writer.write_all(local_bytes)?;
-        writer.write_all(world_bytes)?;
-        
-        Ok(())
-    }
-}
-
-impl WriteEndian for CgfxTransform {
-    const ENDIAN: EndianKind = EndianKind::Endian(Endian::Little);
+    pub local_transform: Mat3x4,
+    pub world_transform: Mat3x4,
 }

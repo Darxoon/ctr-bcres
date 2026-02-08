@@ -5,7 +5,6 @@ use binrw::{BinRead, BinWrite};
 #[cfg(feature = "bytemuck")]
 use bytemuck::{Pod, Zeroable};
 use byteorder::{LittleEndian, ReadBytesExt};
-use png::{BitDepth, ColorType, Encoder, ScaledFloat, SourceChromaticities};
 
 use super::texture::PicaTextureFormat;
 
@@ -73,7 +72,10 @@ pub fn bytes_to_colors(bytes: &[u8]) -> &[RgbaColor] {
     }
 }
 
+#[cfg(feature = "png")]
 pub fn to_png(image_buffer: &[RgbaColor], width: u32, height: u32) -> Result<Vec<u8>> {
+    use png::{BitDepth, ColorType, Encoder, ScaledFloat, SourceChromaticities};
+    
     let bytes = colors_to_bytes(image_buffer);
     let mut out: Vec<u8> = Vec::new();
     

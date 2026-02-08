@@ -7,6 +7,8 @@ use anyhow::{Error, Result};
 use array_init::try_array_init;
 use binrw::{BinRead, BinWrite};
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
+
+#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -18,7 +20,8 @@ use crate::{
     CgfxCollectionValue, WriteContext,
 };
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, BinRead, BinWrite, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, BinRead, BinWrite)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[brw(repr(u32), little)]
 pub enum PicaTextureFormat {
     RGBA8,

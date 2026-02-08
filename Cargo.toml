@@ -19,9 +19,12 @@ array-init = "2.1.0"
 binrw = "0.15.0"
 bytemuck = { version = "1.25.0", optional = true }
 byteorder = "1.4.3"
-clap = { version = "4.3.15", features = ["derive"] }
+glam = { version = "0.25.0", optional = true }
 md5 = { version = "0.8.0" }
-na = "0.32.2"
-png = "0.18.0"
-rayon = "1.11.0"
-serde = { version = "1.0.193", features = ["serde_derive"] }
+png = { version = "0.18.0", optional = true }
+serde = { version = "1.0.228", features = ["serde_derive"], optional = true }
+
+[features]
+png = ["dep:png"]
+serde = ["dep:serde"]
+glam = ["dep:glam"]

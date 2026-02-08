@@ -17,13 +17,11 @@ keywords = ["nintendo", "modding", "3d"]
 anyhow = { version = "1.0.72", features = ["backtrace"] }
 array-init = "2.1.0"
 binrw = "0.15.0"
-bytemuck = { version = "1.23.0", optional = true }
+bytemuck = { version = "1.25.0", optional = true }
 byteorder = "1.4.3"
 clap = { version = "4.3.15", features = ["derive"] }
-md5 = { version = "0.7.0" }
+md5 = { version = "0.8.0" }
 na = "0.32.2"
-png = "0.17.13"
-rayon = "1.8.0"
+png = "0.18.0"
+rayon = "1.11.0"
 serde = { version = "1.0.193", features = ["serde_derive"] }
-serde-binary = "0.5.0"
-serde_yaml = "0.9.27"
